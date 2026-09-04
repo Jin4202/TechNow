@@ -1,0 +1,99 @@
+import { describe, expect, it } from 'vitest';
+
+import { budget } from '@/config/budget';
+import { MODEL_HAIKU, MODEL_SONNET, models, sourceReadingModels } from '@/config/models';
+import { ALL_ASSETS, requiredAssets } from '@/config/required-assets';
+import { thresholds } from '@/config/thresholds';
+
+/**
+ * config 값이 docs/DECISIONS.md 와 어긋나지 않는지 지킨다.
+ *
+ * 값을 바꾸는 것 자체는 정상이다 (튜닝 대상이므로). 다만 결정 문서를 함께
+ * 고치지 않고 바꾸면 여기서 걸린다.
+ */
+
+describe('thresholds', () => {
+  it('선정 규칙은 total >= 10 && minAxis >= 3 (D-09)', () => {
+    expect(thresholds.total).toBe(10);
+    expect(thresholds.minAxis).toBe(3);
+  });
+
+  it('총점 상한(15)을 넘지 않고, 최소 축 점수로 총점이 자동 통과되지 않는다', () => {
+    expect(thresholds.total).toBeLessThanOrEqual(15);
+    // 모든 축이 최소값이기만 해도 통과해버리면 총점 조건이 무의미해진다
+    expect(thresholds.minAxis * 3).toBeLessThan(thresholds.total);
+  });
+
+  it('pending TTL 이 follow-up 윈도우보다 짧다 (D-01)', () => {
+    expect(thresholds.pendingTtlDays).toBe(3);
+    expect(thresholds.pendingTtlDays).toBeLessThan(thresholds.followUpWindowDays);
+  });
+
+  it('processed 보존 기간이 follow-up 윈도우보다 훨씬 길다 (D-01)', () => {
+    expect(thresholds.processedRetentionDays).toBeGreaterThan(thresholds.followUpWindowDays);
+  });
+
+  it('일 상한은 3 (비용 가드)', () => {
+    expect(thresholds.dailyCap).toBe(3);
+  });
+});
+
+describe('models', () => {
+  it('출처 본문을 읽는 4단계가 전부 같은 모델이다 (D-06)', () => {
+    // 하나라도 다르면 prompt cache 프리픽스가 깨지고 예산이 무너진다.
+    // 비용 최적화로도 건드리지 말 것.
+    const used = new Set(Object.values(sourceReadingModels));
+    expect(used.size).toBe(1);
+    expect(used.has(MODEL_SONNET)).toBe(true);
+  });
+
+  it('4단계가 write/extractClaims/verifyClaims/rewrite 로 유지된다', () => {
+    expect(Object.keys(sourceReadingModels).sort()).toEqual([
+      'extractClaims',
+      'rewrite',
+      'verifyClaims',
+      'write',
+    ]);
+  });
+
+  it('모든 단계가 알려진 모델 ID 중 하나를 쓴다', () => {
+    for (const [step, id] of Object.entries(models)) {
+      expect([MODEL_SONNET, MODEL_HAIKU], `${step} 의 모델 ID`).toContain(id);
+    }
+  });
+
+  it('고빈도 저비용 단계는 Haiku 에 남아 있다', () => {
+    expect(models.group).toBe(MODEL_HAIKU);
+    expect(models.score).toBe(MODEL_HAIKU);
+  });
+});
+
+describe('budget', () => {
+  it('토픽당 상한이 기획서 값과 같다', () => {
+    expect(budget.searchCallsPerTopic).toBe(3);
+    expect(budget.pagesPerTopic).toBe(10);
+  });
+
+  it('출처 수 범위가 3~5 이다', () => {
+    expect(budget.minSources).toBe(3);
+    expect(budget.maxSources).toBe(5);
+    expect(budget.minSources).toBeLessThanOrEqual(budget.maxSources);
+  });
+
+  it('일 상한으로 한 달을 채워도 변동비가 월 예산을 넘지 않는다 (D-07)', () => {
+    const variableMonthly = budget.variableUsdPerArticle * thresholds.dailyCap * 30;
+    expect(variableMonthly).toBeLessThan(budget.monthlyUsd);
+  });
+});
+
+describe('required assets', () => {
+  it('필수 자산이 전체 자산 목록의 부분집합이다', () => {
+    for (const asset of requiredAssets) {
+      expect(ALL_ASSETS).toContain(asset);
+    }
+  });
+
+  it('영문 본문은 어느 Phase에서든 필수다', () => {
+    expect(requiredAssets).toContain('english_body');
+  });
+});
