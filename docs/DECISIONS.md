@@ -554,6 +554,23 @@ moments`. 정의는 있지만 "교대하는 원자 자기 모멘트"가 용어�
 
 `pnpm typecheck`는 `next typegen && tsc --noEmit`이다. Next 16이 `LayoutProps` 같은 라우트 타입을 생성하므로 typegen 없이 `tsc`만 돌리면 실패한다.
 
+### D-32. 사람 품질 리뷰 1차 — 막히는 지점은 문장 길이가 아니라 개념 밀도다
+
+기사 4편(`out/read.md`)을 읽고 판정기의 stall point 와 대조했다. **프롬프트는 고치지 않았다.**
+
+**읽기 어려운 기사는 하나였다** — `hall-effect-no-field` (FRE 23.6, 기준 대역 37.8~45.3). 나머지 셋은 대역 안이었다. 판정기가 뽑은 걸리는 문장들의 공통점은 길이가 아니라 **한 문장 안에서 새 개념이 둘 이상 겹치는 것**이었다:
+
+> "In an antiferromagnet the opposing atomic magnets line up along a shared axis called the Neel vector, and whether a zero-field Hall signal is allowed depends on which direction that axis points relative to the crystal's structure."
+
+Neel vector 의 정의와, 그 방향이 물리 효과를 "허용" 하는지가 한 문장에 붙어 있다. 정의를 붙든 채로 대칭성 논증을 따라가야 한다. 문장을 짧게 잘라도 이 문제는 남는다.
+
+**그런데 프롬프트를 고치지 않았다.** 근거가 기사 한 편이기 때문이다. D-27 에서 정확히 이 실수를 했다 — fixture 하나를 보고 프롬프트를 바꿔 성공률을 5/5 에서 2/5 로 떨어뜨렸다. "개념 밀도" 규칙을 넣는 것이 옳을 수 있지만, 그 판단에는 **어려운 주제 여러 편**이 필요하다. 지금 표본은 응집물질물리 한 편이고, 주제가 어려운 것인지 프롬프트가 무너진 것인지 구분할 수 없다.
+
+**다음에 볼 것**: 발행이 쌓이면 FRE 가 대역 아래인 기사를 모아 주제 분야와 대조한다. 특정 분야에 몰리면 주제 난이도이고, 흩어져 있으면 프롬프트다.
+
+**Phase 3 완료 조건과의 차이**: 조건은 "연속 발행된 기사 10개" 였는데 실제로 읽은 것은 fixture 기반 4편이다. 10편을 채우려면 새 토픽 조사가 필요했고(편당 $0.12~0.22), 4편에서 이미 한 방향이 보여 더 쓰지 않기로 했다. 발행이 쌓이는 대로 `2.8` 주간 캘리브레이션에서 다시 본다.
+
+
 ---
 
 ## 미기록 (해당 태스크에서 확인 후 추가할 것)
