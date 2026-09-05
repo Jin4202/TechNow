@@ -11,7 +11,12 @@ import { defineConfig } from '@trigger.dev/sdk';
  */
 export default defineConfig({
   project: 'proj_biyzhkrdvogkczkpqepd',
-  runtime: 'node',
+
+  // .nvmrc 와 같은 메이저 버전이어야 한다 (D-17).
+  // 기본값 'node' 는 Node 20 이고, supabase-js 가 거기서
+  // "native WebSocket not found" 로 죽는다.
+  // tests/runtime-version.test.ts 가 둘의 일치를 지킨다
+  runtime: 'node-22',
   logLevel: 'log',
 
   // 조사 단계는 검색 + 페이지 fetch 여러 번을 돈다. 넉넉히 잡는다

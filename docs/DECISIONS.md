@@ -166,6 +166,12 @@ Node 20 은 `WebSocket` 이 `--experimental-websocket` 플래그 뒤에 있고 2
 **주의**: Next.js 서버(`@supabase/ssr`)는 Node 20 에서도 동작했다. 실패하는 건 파이프라인이
 쓰는 `createServiceClient` 쪽이다. 로컬에서 `nvm use` 를 빠뜨리면 파이프라인 테스트만 깨진다.
 
+**Node 버전을 정하는 곳이 세 군데다.** `.nvmrc` 는 로컬과 CI 만 커버한다.
+Trigger.dev 클라우드 런타임은 `trigger.config.ts` 의 `runtime` 이 정하며,
+기본값 `'node'` 는 Node 20 이다. 처음에 `.nvmrc` 만 올렸다가 **로컬·CI 는 전부 통과하는데
+배포된 파이프라인만 죽는** 상황을 겪었다. `runtime: 'node-22'` 로 맞췄고,
+`tests/runtime-version.test.ts` 가 `.nvmrc` / `engines` / `runtime` 세 값의 일치를 지킨다.
+
 ### D-18. 권한을 대시보드 토글이 아니라 마이그레이션에 박는다
 
 Supabase 프로젝트 설정:
