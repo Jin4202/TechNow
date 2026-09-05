@@ -5,7 +5,14 @@
  */
 
 export const MODEL_SONNET = 'claude-sonnet-5';
-export const MODEL_HAIKU = 'claude-haiku-4-5-20251001';
+/**
+ * 모델 ID 에 날짜 접미사를 붙이지 않는다. 위 문자열이 완전한 형태다.
+ *
+ * Haiku 4.5 주의:
+ *   - output_config.effort 를 지원하지 않는다 (에러). Sonnet 에만 쓴다
+ *   - thinking 은 budget_tokens 방식이다. 이 파이프라인에서는 쓰지 않는다
+ */
+export const MODEL_HAIKU = 'claude-haiku-4-5';
 
 /**
  * 출처 본문을 프롬프트에 싣는 단계들.

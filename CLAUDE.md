@@ -41,7 +41,7 @@ RSS로 주제를 발굴 → 3~5개 출처를 조사 → 원본 영문 기사 작
 6. **비용 상한을 코드로 강제한다.** 토픽당 검색 3회, 페이지 fetch 10회, 이미지 1장, 하루 기사 3개. 프롬프트에 부탁하는 게 아니라 호출 지점에서 카운터로 막는다.
 7. **모델 ID는 고정 상수로만 쓴다.** `src/config/models.ts`에만 둔다.
    - `claude-sonnet-5` — **출처 본문을 읽는 모든 단계**(작성·클레임 추출·검증·재작성) + 번역 + 월간 요약
-   - `claude-haiku-4-5-20251001` — 쿼리 생성·그룹핑·1차 채점·재채점
+   - `claude-haiku-4-5` — 쿼리 생성·그룹핑·1차 채점·재채점 (날짜 접미사 없음. `effort` 미지원)
    출처 본문을 읽는 단계 중 하나라도 모델을 바꾸면 prompt cache가 깨져 비용이 뛴다. 비용 최적화를 하더라도 이 네 단계는 건드리지 말 것.
 8. **외부 페이지를 가져올 때 robots.txt를 확인하고, 식별 가능한 User-Agent를 쓰고, 도메인당 요청 간격을 둔다.**
 9. **Next 16은 학습 데이터와 다르다.** API·규약·파일 구조가 바뀌었다 (예: `middleware.ts` → `proxy.ts`). Next 관련 코드를 쓰기 전에 `node_modules/next/dist/docs/` 의 해당 문서를 읽는다. 저장소 루트의 `AGENTS.md`가 이 경고를 담고 있으며 `next dev`가 자동 재생성한다.
@@ -59,7 +59,8 @@ src/
   proxy.ts                접근 게이트. Next 16에서 middleware.ts 규약이 proxy.ts 로 개명됨
   components/             UI 컴포넌트
   messages/               next-intl 메시지 (en.json / ko.json)
-  config/                 튜닝 값. models / thresholds / feeds / source-tiers / required-assets
+  clients/                외부 API 클라이언트. anthropic / brave(3.2) / fal(5.3)
+  config/                 튜닝 값. models / thresholds / feeds / filters / source-tiers / required-assets
   db/                     DB 타입, 쿼리 헬퍼, Supabase 클라이언트(anon / server / service)
   pipeline/               파이프라인 "로직". 순수 함수 중심, Trigger.dev에 의존하지 않음
     discover/ group/ score/ research/ write/ verify/ translate/ illustrate/ publish/
