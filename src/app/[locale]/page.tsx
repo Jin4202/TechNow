@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { logout } from '@/app/[locale]/login/actions';
 import { ArticleCard } from '@/components/article-card';
+import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LOCALES, toLocale } from '@/config/locales';
 import { listPublishedArticles } from '@/db/published-articles';
 import { createClient } from '@/db/supabase/server';
@@ -42,23 +43,36 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
           </p>
         </div>
 
-        {user ? (
-          <form action={logout}>
-            <button
-              type="submit"
-              className="rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
+        <div className="flex items-center gap-3">
+          <LocaleSwitcher current={locale} />
+
+          {user ? (
+            <Link
+              href={`/${locale}/profile`}
+              className="text-sm text-black/60 hover:underline dark:text-white/60"
             >
-              {t('nav.logOut')}
-            </button>
-          </form>
-        ) : (
-          <Link
-            href={`/${locale}/login`}
-            className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
-          >
-            {t('nav.logIn')}
-          </Link>
-        )}
+              {t('nav.profile')}
+            </Link>
+          ) : null}
+
+          {user ? (
+            <form action={logout}>
+              <button
+                type="submit"
+                className="rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
+              >
+                {t('nav.logOut')}
+              </button>
+            </form>
+          ) : (
+            <Link
+              href={`/${locale}/login`}
+              className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
+            >
+              {t('nav.logIn')}
+            </Link>
+          )}
+        </div>
       </header>
 
       <main>

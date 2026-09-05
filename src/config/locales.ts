@@ -43,3 +43,18 @@ export function isLocale(value: string): value is Locale {
 export function toLocale(value: string): Locale {
   return isLocale(value) ? value : DEFAULT_LOCALE;
 }
+
+/**
+ * 같은 페이지의 다른 언어판 경로 (4.2).
+ *
+ * 슬러그는 두 언어가 공유한다 (D-08 — 같은 기사는 같은 URL 의 언어 변형이고,
+ * 그래서 hreflang 이 성립한다).
+ * 경로가 예상 밖이면 그 언어의 목록으로 돌린다. 잘못된 경로로 보내느니 낫다.
+ */
+export function swapLocale(pathname: string, locale: Locale): string {
+  const segments = pathname.split('/');
+  if (!isLocale(segments[1] ?? '')) return `/${locale}`;
+
+  segments[1] = locale;
+  return segments.join('/');
+}

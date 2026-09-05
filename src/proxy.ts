@@ -141,8 +141,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     if (target) {
       const url = request.nextUrl.clone();
       url.pathname = target;
-      // 308: 영구이고 메서드를 유지한다. 언어 접두사는 앞으로도 바뀌지 않는다
-      return NextResponse.redirect(url, 308);
+      // **307 이지 308 이 아니다.** 목적지가 쿠키에 따라 달라지므로 영구 리다이렉트로
+      // 내면 브라우저가 그것을 캐시해, 언어를 바꿔도 `/` 가 계속 옛 언어로 간다.
+      // 실제로 그렇게 만들었다가 잡았다. 307 은 메서드를 유지하면서 임시다
+      return NextResponse.redirect(url, 307);
     }
 
     return updateSession(request);

@@ -5,11 +5,18 @@
   },
   "nav": {
     "allArticles": "← 전체 기사",
+    "profile": "프로필",
     "logIn": "로그인",
     "logOut": "로그아웃"
   },
   "home": {
     "empty": "오늘은 새 기사가 없습니다"
+  },
+  "profile": {
+    "title": "프로필",
+    "language": "언어",
+    "languageHelp": "화면과 기사 내용에 함께 적용됩니다. 계정에 저장됩니다.",
+    "account": "계정"
   },
   "article": {
     "sources": "출처",

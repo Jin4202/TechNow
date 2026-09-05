@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { NextRequest } from 'next/server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { checkGate, localeRedirect } from '@/proxy';
+import { swapLocale } from '@/config/locales';
+import { checkGate, localeRedirect, proxy } from '@/proxy';
 
 const CREDENTIALS = { user: 'gate', password: 'secret', isDevelopment: false };
 
@@ -103,5 +105,59 @@ describe('localeRedirect', () => {
     // /en/robots.txt 로 돌리면 404 가 된다. 언어판이 없는 리소스다
     expect(localeRedirect('/robots.txt', {})).toBeNull();
     expect(localeRedirect('/sitemap.xml', { cookie: 'ko' })).toBeNull();
+  });
+});
+
+describe('swapLocale', () => {
+  it('첫 세그먼트만 바꾸고 나머지 경로를 유지한다', () => {
+    // 슬러그는 두 언어가 공유한다 (D-08). 그래서 hreflang 이 성립한다
+    expect(swapLocale('/en/articles/some-slug', 'ko')).toBe('/ko/articles/some-slug');
+    expect(swapLocale('/ko', 'en')).toBe('/en');
+  });
+
+  it('언어 없는 경로는 그 언어의 목록으로', () => {
+    expect(swapLocale('/articles/some-slug', 'ko')).toBe('/ko');
+    expect(swapLocale('/', 'ko')).toBe('/ko');
+  });
+});
+
+describe('proxy 의 언어 리다이렉트', () => {
+  /**
+   * 개발 환경에서는 게이트가 통과하므로(checkGate) 리다이렉트만 남는다.
+   * NODE_ENV 는 vitest 가 'test' 로 두므로 게이트 값을 직접 넣어준다.
+   */
+  function request(path: string, headers: Record<string, string> = {}) {
+    return new NextRequest(new URL(path, 'http://localhost:3000'), { headers });
+  }
+
+  beforeEach(() => {
+    vi.stubEnv('GATE_USER', 'gate');
+    vi.stubEnv('GATE_PASSWORD', 'secret');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const auth = { authorization: `Basic ${btoa('gate:secret')}` };
+
+  it('언어 없는 경로는 307 이다 — 308 이면 브라우저가 캐시해 언어 변경이 먹지 않는다', async () => {
+    const response = await proxy(request('/', auth));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/en');
+  });
+
+  it('쿠키를 보고 목적지를 고른다', async () => {
+    const response = await proxy(request('/', { ...auth, cookie: 'NEXT_LOCALE=ko' }));
+
+    expect(response.headers.get('location')).toBe('http://localhost:3000/ko');
+  });
+
+  it('게이트를 통과하지 못하면 리다이렉트하지 않는다', async () => {
+    // 언어 리다이렉트가 게이트보다 앞에 오면 비공개 사이트의 경로 구조가 새어나간다
+    const response = await proxy(request('/'));
+
+    expect(response.status).toBe(401);
   });
 });

@@ -32,7 +32,7 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 **남은 확인**: Phase 1 완료 조건인 "이틀 연속 **자동으로** 쌓인다" 는
 01:00 America/Los_Angeles 스케줄이 이틀 연속 도는 것을 봐야 한다.
 
-다음 할 일: **Phase 4** — `4.2` 프로필 언어 설정 + 언어 없는 경로의 리다이렉트 기본값 (D-08).
+다음 할 일: **Phase 4** — `4.3` 번역 프롬프트 (영→한, Sonnet, structured output).
 `2.8` 은 일주일치 데이터가 쌓인 뒤에 한다.
 
 ---
@@ -149,7 +149,7 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 |---|---|---|
 | ~~4.0~~ | ~~**[추가]** `/[locale]/articles/[slug]` 라우팅 적용 (D-08)~~ | **완료.** `/en`·`/ko` 동작, hreflang·canonical 확인. proxy 가 언어 없는 경로를 308 로 돌린다 |
 | ~~4.1~~ | ~~next-intl 설정, `en`/`ko` 메시지 파일, Pretendard 로드~~ | **완료.** UI 문자열 전환 확인. 메시지 키는 타입으로 고정. Pretendard 는 dynamic subset (한국어 페이지 130KB) |
-| 4.2 | 프로필 페이지의 언어 설정 + 언어 없는 경로의 리다이렉트 기본값 (D-08) | 변경 시 `locale` 갱신 + `/` 진입 시 해당 locale로 리다이렉트 |
+| ~~4.2~~ | ~~프로필 페이지의 언어 설정 + 언어 없는 경로의 리다이렉트 기본값 (D-08)~~ | **완료.** 헤더 전환기 + 프로필 페이지. 쿠키 반영과 `/` 리다이렉트 확인. **로그인 상태의 `profiles.locale` 저장은 사람이 확인해야 함** (로컬에 계정 없음) |
 | 4.3 | 번역 프롬프트 (영→한, structured output, Sonnet) | 한 기사가 `article_translations`에 한국어 행을 만듦 |
 | 4.3a | **[추가]** 번역본 구조 정합성 검증 (D-03) | 섹션 수 또는 `sources` 배열이 원문과 다른 mock 번역이 실패 처리됨 |
 | 4.4 | 번역 태스크를 파이프라인에 편입 | 새 기사에 한국어판이 자동 생성됨 |

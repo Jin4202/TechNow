@@ -5,11 +5,18 @@
   },
   "nav": {
     "allArticles": "← All articles",
+    "profile": "Profile",
     "logIn": "Log in",
     "logOut": "Log out"
   },
   "home": {
     "empty": "No new stories today"
+  },
+  "profile": {
+    "title": "Profile",
+    "language": "Language",
+    "languageHelp": "Applies to the interface and to article content. Saved to your account.",
+    "account": "Account"
   },
   "article": {
     "sources": "Sources",
