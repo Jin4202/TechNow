@@ -1,0 +1,159 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+
+import { ArticleFeedback } from '@/components/article-feedback';
+import { categoryLabel } from '@/config/categories';
+import { getPublishedArticle } from '@/db/published-articles';
+import { createClient } from '@/db/supabase/server';
+
+/**
+ * 기사 상세 페이지 (로드맵 3.14).
+ *
+ * RLS 가 발행된 기사만 돌려주므로, 발행 전 기사를 slug 로 찔러봐도
+ * 존재하지 않는 것과 구분되지 않는다 (D-02).
+ */
+
+export async function generateMetadata({ params }: PageProps<'/articles/[slug]'>) {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const article = await getPublishedArticle(supabase, slug);
+
+  if (!article) return { title: 'Not found' };
+
+  return {
+    title: article.title,
+    description: article.one_line_summary,
+  };
+}
+
+export default async function ArticlePage({ params }: PageProps<'/articles/[slug]'>) {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const article = await getPublishedArticle(supabase, slug);
+
+  if (!article) notFound();
+
+  const published = article.published_at
+    ? new Date(article.published_at).toLocaleDateString('en-CA', {
+        timeZone: 'America/Los_Angeles',
+      })
+    : null;
+
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-10 sm:px-6 sm:py-16">
+      <nav className="mb-8">
+        <Link href="/" className="text-sm text-black/60 hover:underline dark:text-white/60">
+          ← All articles
+        </Link>
+      </nav>
+
+      <article>
+        <header>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-black/50 dark:text-white/50">
+            <span className="rounded-full border border-black/15 px-2 py-0.5 dark:border-white/20">
+              {categoryLabel(article.category, 'en')}
+            </span>
+            {published ? <time dateTime={article.published_at!}>{published}</time> : null}
+          </div>
+
+          <h1 className="mt-3 text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">
+            {article.title}
+          </h1>
+
+          <p className="mt-3 text-base text-black/70 dark:text-white/70">
+            {article.one_line_summary}
+          </p>
+        </header>
+
+        {/* 이전 기사가 있으면 먼저 알린다. 맥락 없이 후속을 읽으면 이해가 안 된다 */}
+        {article.followUpOf ? (
+          <p className="mt-6 rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/15">
+            <span className="text-black/50 dark:text-white/50">Follows </span>
+            <Link href={`/articles/${article.followUpOf.slug}`} className="hover:underline">
+              {article.followUpOf.title}
+            </Link>
+          </p>
+        ) : null}
+
+        <div className="mt-8 flex flex-col gap-8">
+          {article.body.sections.map((section, index) => (
+            <section key={index}>
+              <h2 className="text-lg font-medium">{section.heading}</h2>
+              <div className="mt-2 flex flex-col gap-3">
+                {section.paragraphs.map((paragraph, i) => (
+                  <p key={i} className="text-[0.95rem] leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+              {/* 섹션마다 어느 출처에 근거했는지 (D-03) */}
+              {section.sources.length > 0 ? (
+                <p className="mt-2 text-xs text-black/40 dark:text-white/40">
+                  Sources {section.sources.join(', ')}
+                </p>
+              ) : null}
+            </section>
+          ))}
+        </div>
+
+        {article.tags.length > 0 ? (
+          <ul className="mt-8 flex flex-wrap gap-2">
+            {article.tags.map((tag) => (
+              <li
+                key={tag}
+                className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-black/60 dark:bg-white/10 dark:text-white/60"
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </article>
+
+      {/* 출처는 기사의 일부다. 숨기지 않는다 (기획서 §2.2) */}
+      <section className="mt-10 border-t border-black/10 pt-6 dark:border-white/15">
+        <h2 className="text-sm font-medium">Sources</h2>
+        <ol className="mt-3 flex flex-col gap-3">
+          {article.sources.map((source) => (
+            <li key={source.ordinal} className="text-sm">
+              <span className="text-black/40 dark:text-white/40">{source.ordinal}.</span>{' '}
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="hover:underline"
+              >
+                {source.title ?? source.url}
+              </a>
+              <span className="ml-2 text-xs text-black/40 dark:text-white/40">
+                {source.publisher ? `${source.publisher} · ` : ''}
+                Tier {source.tier}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {article.followedBy.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="text-sm font-medium">Later coverage</h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {article.followedBy.map((later) => (
+              <li key={later.slug} className="text-sm">
+                <Link href={`/articles/${later.slug}`} className="hover:underline">
+                  {later.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <ArticleFeedback
+        articleId={article.id}
+        styleGuideVersion={article.style_guide_version}
+        locale="en"
+      />
+    </div>
+  );
+}

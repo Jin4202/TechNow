@@ -34,6 +34,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_feedback: {
+        Row: {
+          article_id: string
+          created_at: string
+          helpful: boolean
+          id: string
+          locale: Database["public"]["Enums"]["locale"]
+          style_guide_version: string | null
+          voter_key: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          helpful: boolean
+          id?: string
+          locale: Database["public"]["Enums"]["locale"]
+          style_guide_version?: string | null
+          voter_key: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          helpful?: boolean
+          id?: string
+          locale?: Database["public"]["Enums"]["locale"]
+          style_guide_version?: string | null
+          voter_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_feedback_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_sources: {
         Row: {
           article_id: string
