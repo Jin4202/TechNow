@@ -1,4 +1,4 @@
-import { addUsage, estimateCost, ZERO_USAGE, type TokenUsage } from '@/clients/anthropic';
+import { addUsage, estimateCost, type TokenUsage } from '@/clients/anthropic';
 import { feeds } from '@/config/feeds';
 import {
   CACHE_READ_MULTIPLIER,
