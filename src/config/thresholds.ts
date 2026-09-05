@@ -13,7 +13,7 @@ export const thresholds = {
    * 기획서의 "어느 축도 2 이하가 아님"을 양성 표현으로 통일한 것 (D-09).
    * 선정 규칙 전체: total >= 10 && min(axis) >= 3
    */
-  minAxis: 3,
+  minAxis: 2,
 
   /** 하루 발행 상한. 비용 가드 */
   dailyCap: 3,
