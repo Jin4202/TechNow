@@ -38,6 +38,17 @@ export const thresholds = {
    * 재게시되는 피드 항목을 계속 걸러야 하므로 followUpWindowDays 보다 훨씬 길다
    */
   processedRetentionDays: 90,
+
+  /**
+   * 한 번의 채점 호출에 넣는 토픽 수.
+   *
+   * 130개를 한 번에 보내면 뒤쪽 토픽의 채점이 성의없어진다.
+   * 작게 자르면 호출 수와 시스템 프롬프트 중복이 늘어난다
+   */
+  scoringChunkSize: 20,
+
+  /** 채점 호출 동시 실행 수. 레이트 리밋과 지연 사이의 절충 */
+  scoringConcurrency: 4,
 } as const;
 
 export type Thresholds = typeof thresholds;

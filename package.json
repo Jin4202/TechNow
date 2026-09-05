@@ -18,7 +18,8 @@
     "db:live": "vitest run --config vitest.live.config.mts tests/live/seen-items.live.ts",
     "daily:live": "vitest run --config vitest.live.config.mts tests/live/run-daily.live.ts",
     "seed": "vitest run --config vitest.live.config.mts tests/live/seed.live.ts",
-    "group:live": "vitest run --config vitest.live.config.mts tests/live/group-topics.live.ts"
+    "group:live": "vitest run --config vitest.live.config.mts tests/live/group-topics.live.ts",
+    "score:live": "vitest run --config vitest.live.config.mts tests/live/score-topics.live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
