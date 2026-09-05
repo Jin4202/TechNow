@@ -268,7 +268,13 @@ pipeline_runs          id, run_type, started_at, finished_at, status,
 | `source_texts` | 정책 없음 (0행) | 없음 |
 | `pipeline_runs` | 정책 없음 (0행) | 없음 |
 
-RLS를 켜고 정책을 만들지 않으면 anon에게는 0행이 보인다. 마지막 세 테이블이 그 상태다.
+RLS를 켜고 정책을 만들지 않으면 anon에게는 0행이 보인다. 마지막 세 테이블이 그 상태이며,
+grant 까지 회수해 두 겹으로 막는다.
+
+**RLS 와 grant 는 다른 층이다** (D-18). 정책이 "어느 행"을, grant 가 "어느 동작"을 정하고
+둘 다 통과해야 접근된다. Supabase 기본 grant 는 anon 에게 `TRUNCATE` 까지 주는데
+TRUNCATE 는 RLS 로 걸러지지 않으므로, `explicit_grants` 마이그레이션에서 전부 회수한 뒤
+필요한 것만 다시 부여한다. **새 테이블을 추가하면 그 파일에 grant 를 더해야 앱에서 보인다.**
 
 ---
 

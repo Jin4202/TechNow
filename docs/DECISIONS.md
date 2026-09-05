@@ -166,6 +166,44 @@ Node 20 은 `WebSocket` 이 `--experimental-websocket` 플래그 뒤에 있고 2
 **주의**: Next.js 서버(`@supabase/ssr`)는 Node 20 에서도 동작했다. 실패하는 건 파이프라인이
 쓰는 `createServiceClient` 쪽이다. 로컬에서 `nvm use` 를 빠뜨리면 파이프라인 테스트만 깨진다.
 
+### D-18. 권한을 대시보드 토글이 아니라 마이그레이션에 박는다
+
+Supabase 프로젝트 설정:
+
+| 항목 | 값 |
+|---|---|
+| Enable Data API | ON (supabase-js 를 쓰므로 필수) |
+| Automatically expose new tables | **OFF** |
+| Enable automatic RLS | ON |
+
+다만 **이 토글에 보안을 의존하지 않는다.** 로컬 스택에는 같은 토글이 없어서
+로컬과 운영이 갈라지고, 그런 차이는 운영에서만 터진다. 같은 효과를
+`20260905040000_explicit_grants.sql` 에 넣어 양쪽이 동일하게 동작하게 했다:
+
+- `revoke all ... from anon, authenticated` 후 필요한 것만 `grant`
+- `alter default privileges ... revoke all` — 새 테이블은 기본적으로 권한 없음
+- `CREATE TABLE` 이벤트 트리거로 새 테이블에 RLS 강제
+
+**왜 기본 grant 로는 부족했나**: Supabase 기본값은 anon 에게 `TRUNCATE` 와
+`REFERENCES` 까지 준다. **TRUNCATE 는 RLS 로 걸러지지 않는다** — PostgREST 가
+그 동작을 노출하지 않을 뿐이다. `revoke insert, update, delete` 만으로는 남는다.
+
+**권한 모델**: RLS 정책이 "어느 행"을, grant 가 "어느 동작"을 정한다. 둘 다
+통과해야 접근된다. 새 테이블을 추가하면 explicit_grants 마이그레이션에
+grant 를 더해야 앱에서 보인다 — 잊으면 노출이 아니라 미표시로 실패한다.
+
+최종 권한:
+
+| 테이블 | anon | authenticated |
+|---|---|---|
+| articles / article_sources / article_translations | select | select |
+| profiles | — | select, update |
+| scraps | — | select, insert, delete |
+| monthly_summaries | — | select |
+| seen_feed_items / source_texts / pipeline_runs | — | — |
+
+`scraps` 에 update 를 주지 않은 것은 의도적이다. 수정할 필드가 없다.
+
 ---
 
 ## 참고 — Next 16 변경점 (결정이 아니라 사실)
