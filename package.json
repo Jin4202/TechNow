@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:secrets"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:secrets",
+    "db:types": "supabase gen types typescript --local > src/db/types.ts",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
     "next": "16.3.4",

@@ -37,3 +37,13 @@ describe('categories', () => {
     expect(() => getCategory('quantum-cooking')).toThrow();
   });
 });
+
+describe('DB enum 과의 동기화', () => {
+  it('src/config/categories.ts 와 DB category enum 이 정확히 일치한다', async () => {
+    // config 에만 추가하고 마이그레이션을 빠뜨리면 (또는 그 반대) 여기서 잡힌다.
+    // types.ts 는 `pnpm db:types` 로 로컬 스키마에서 생성한다.
+    const { Constants } = await import('@/db/types');
+    const dbValues = [...Constants.public.Enums.category].sort();
+    expect(dbValues).toEqual([...CATEGORY_VALUES].sort());
+  });
+});
