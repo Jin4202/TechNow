@@ -24,7 +24,7 @@ describe('기사 내보내기', () => {
       '',
       `생성 시각: ${new Date().toISOString()}`,
       '',
-      '스타일 가이드 목표: 섹션 3~5개, 600~900단어, 평균 문장 24단어 미만, 40단어 초과 없음.',
+      '읽기용 문서는 `pnpm articles:read` 가 만든다 (out/read.md). 평가는 `pnpm evaluate`.',
       '',
       '---',
       '',

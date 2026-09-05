@@ -29,6 +29,7 @@
     "articles:export": "vitest run --config vitest.live.config.mts tests/live/export-articles.live.ts",
     "reference:build": "vitest run --config vitest.live.config.mts tests/live/build-reference.live.ts",
     "evaluate": "vitest run --config vitest.live.config.mts tests/live/evaluate.live.ts",
+    "articles:read": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/read-articles.live.ts",
     "cost:report": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cost-report.live.ts"
   },
   "dependencies": {
