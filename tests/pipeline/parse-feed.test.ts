@@ -125,3 +125,35 @@ describe('parseFeed — 깨진 입력', () => {
     expect(parseFeed('<html><body>nope</body></html>', 'x')).toEqual([]);
   });
 });
+
+describe('parseFeed — HTML 엔티티', () => {
+  const withEntities = (desc: string) =>
+    parseFeed(
+      `<rss version="2.0"><channel><item>
+        <title>T</title><link>https://example.org/e</link>
+        <description>${desc}</description>
+      </item></channel></rss>`,
+      'x',
+    )[0]!.description;
+
+  it('태그를 걷어낸 뒤 남은 숫자 엔티티를 푼다', () => {
+    // 피드가 이중 인코딩해 보내는 흔한 경우
+    expect(withEntities('&lt;p&gt;student&amp;#039;s work&lt;/p&gt;')).toBe("student's work");
+  });
+
+  it('16진 엔티티를 푼다', () => {
+    expect(withEntities('&lt;p&gt;it&amp;#x27;s&lt;/p&gt;')).toBe("it's");
+  });
+
+  it('이름 있는 엔티티를 푼다', () => {
+    expect(withEntities('a &amp;mdash; b &amp;nbsp; c')).toBe('a — b c');
+  });
+
+  it('모르는 엔티티는 그대로 둔다', () => {
+    expect(withEntities('&amp;unknownthing;')).toBe('&unknownthing;');
+  });
+
+  it('태그를 먼저 지우므로 이스케이프된 스크립트가 사라지지 않는다', () => {
+    expect(withEntities('&lt;p&gt;a &amp;lt;script&amp;gt; b&lt;/p&gt;')).toBe('a <script> b');
+  });
+});

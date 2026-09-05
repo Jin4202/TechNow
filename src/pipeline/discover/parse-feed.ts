@@ -50,10 +50,39 @@ function parseDate(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  mdash: '\u2014',
+  ndash: '\u2013',
+  hellip: '\u2026',
+  rsquo: '\u2019',
+  lsquo: '\u2018',
+  ldquo: '\u201c',
+  rdquo: '\u201d',
+};
+
+/**
+ * HTML 엔티티를 되돌린다.
+ *
+ * 피드 설명은 이중 인코딩되어 오는 경우가 많다. XML 파서가 한 번 풀면
+ * `<p>It&#039;s ...</p>` 가 남고, 태그만 걷어내면 `&#039;` 가 본문에 그대로 노출된다.
+ */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
+    .replace(/&([a-zA-Z]+);/g, (match, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? match);
+}
+
 /** HTML 설명에서 태그를 걷어낸다. 저비용 필터가 길이를 재야 하므로 */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
+  // 태그를 먼저 지우고 엔티티를 푼다. 순서가 반대면 &lt;script&gt; 가 태그가 되어 사라진다
+  return decodeEntities(html.replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ')
     .trim();
 }
