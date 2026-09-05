@@ -3,6 +3,8 @@
 import { recordFeedback, type FeedbackOutcome } from '@/db/article-feedback';
 import { createClient } from '@/db/supabase/server';
 
+import type { Locale } from '@/config/locales';
+
 /**
  * 독자 피드백 서버 액션 (D-28).
  *
@@ -13,7 +15,7 @@ export async function submitFeedback(input: {
   articleId: string;
   helpful: boolean;
   voterKey: string;
-  locale: 'en' | 'ko';
+  locale: Locale;
   styleGuideVersion: string | null;
 }): Promise<{ outcome: FeedbackOutcome }> {
   // voterKey 는 브라우저가 만든다. 형식만 확인하고 내용은 믿지 않는다

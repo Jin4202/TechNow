@@ -1,3 +1,4 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 
 import { logout } from '@/app/[locale]/login/actions';
@@ -19,6 +20,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]'>) {
 
 export default async function Home({ params }: PageProps<'/[locale]'>) {
   const locale = toLocale((await params).locale);
+  setRequestLocale(locale);
+
+  const t = await getTranslations();
   const supabase = await createClient();
 
   const [
@@ -32,9 +36,9 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-16">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">TechNow</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('site.name')}</h1>
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-            Science and technology, every morning
+            {t('site.tagline')}
           </p>
         </div>
 
@@ -44,7 +48,7 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
               type="submit"
               className="rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
             >
-              Log out
+              {t('nav.logOut')}
             </button>
           </form>
         ) : (
@@ -52,7 +56,7 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
             href={`/${locale}/login`}
             className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
           >
-            Log in
+            {t('nav.logIn')}
           </Link>
         )}
       </header>
@@ -61,7 +65,7 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
         {articles.length === 0 ? (
           // 기획서 §2.1 — 임계값을 넘은 토픽이 없는 날
           <p className="py-16 text-center text-sm text-black/50 dark:text-white/50">
-            No new stories today
+            {t('home.empty')}
           </p>
         ) : (
           <div>

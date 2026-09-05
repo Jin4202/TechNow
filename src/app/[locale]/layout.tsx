@@ -1,3 +1,5 @@
+import { NextIntlClientProvider } from 'next-intl';
+import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
 import { isLocale, LOCALES } from '@/config/locales';
@@ -14,7 +16,8 @@ import type { Metadata } from 'next';
  * `locale()` 로 props 드릴링 없이 읽을 수 있다.
  * (node_modules/next/dist/docs/01-app/03-api-reference/04-functions/next-root-params.md)
  *
- * 폰트는 4.1 에서 Pretendard 로 바꾼다 (기획서 §7 — 두 언어에 한 폰트).
+ * 폰트는 Pretendard 하나로 두 언어를 다 쓴다 (기획서 §7). 라틴 문자와 한글이
+ * 같은 폰트에서 나와야 언어를 바꿔도 지면이 흔들리지 않는다.
  */
 
 export const metadata: Metadata = {
@@ -32,9 +35,14 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
 
+  // 이게 없으면 next-intl 이 요청별 렌더로 내려가 정적 생성이 깨진다
+  setRequestLocale(locale);
+
   return (
     <html lang={locale} className="h-full antialiased">
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

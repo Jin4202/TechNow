@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 /**
  * 렌더 중 예외가 났을 때의 화면.
  *
@@ -8,11 +10,13 @@
  * 읽지 못한 것은 다르고, 후자를 전자처럼 보여주면 독자를 속이는 셈이다.
  */
 export default function Error({ reset }: { error: Error; reset: () => void }) {
+  const t = useTranslations('error');
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-4 px-5 py-16 sm:px-6">
-      <h1 className="text-xl font-semibold tracking-tight">Something went wrong</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{t('title')}</h1>
       <p className="text-sm text-black/60 dark:text-white/60">
-        We couldn&apos;t load this page. This is on our side, not yours.
+        {t('body')}
       </p>
       <div>
         <button
@@ -20,7 +24,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
           onClick={reset}
           className="rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
         >
-          Try again
+          {t('retry')}
         </button>
       </div>
     </div>

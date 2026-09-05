@@ -1,3 +1,4 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -36,6 +37,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/articles
 export default async function ArticlePage({ params }: PageProps<'/[locale]/articles/[slug]'>) {
   const { slug, locale: localeParam } = await params;
   const locale = toLocale(localeParam);
+  setRequestLocale(locale);
+
+  const t = await getTranslations();
   const supabase = await createClient();
   const article = await getPublishedArticle(supabase, slug);
 
@@ -51,7 +55,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-10 sm:px-6 sm:py-16">
       <nav className="mb-8">
         <Link href={`/${locale}`} className="text-sm text-black/60 hover:underline dark:text-white/60">
-          ← All articles
+          {t('nav.allArticles')}
         </Link>
       </nav>
 
@@ -76,7 +80,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
         {/* 이전 기사가 있으면 먼저 알린다. 맥락 없이 후속을 읽으면 이해가 안 된다 */}
         {article.followUpOf ? (
           <p className="mt-6 rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/15">
-            <span className="text-black/50 dark:text-white/50">Follows </span>
+            <span className="text-black/50 dark:text-white/50">{t('article.follows')} </span>
             <Link href={`/${locale}/articles/${article.followUpOf.slug}`} className="hover:underline">
               {article.followUpOf.title}
             </Link>
@@ -97,7 +101,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
               {/* 섹션마다 어느 출처에 근거했는지 (D-03) */}
               {section.sources.length > 0 ? (
                 <p className="mt-2 text-xs text-black/40 dark:text-white/40">
-                  Sources {section.sources.join(', ')}
+                  {t('article.sectionSources', { numbers: section.sources.join(', ') })}
                 </p>
               ) : null}
             </section>
@@ -120,7 +124,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
 
       {/* 출처는 기사의 일부다. 숨기지 않는다 (기획서 §2.2) */}
       <section className="mt-10 border-t border-black/10 pt-6 dark:border-white/15">
-        <h2 className="text-sm font-medium">Sources</h2>
+        <h2 className="text-sm font-medium">{t('article.sources')}</h2>
         <ol className="mt-3 flex flex-col gap-3">
           {article.sources.map((source) => (
             <li key={source.ordinal} className="text-sm">
@@ -135,7 +139,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
               </a>
               <span className="ml-2 text-xs text-black/40 dark:text-white/40">
                 {source.publisher ? `${source.publisher} · ` : ''}
-                Tier {source.tier}
+                {t('article.tier', { tier: source.tier })}
               </span>
             </li>
           ))}
@@ -144,7 +148,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
 
       {article.followedBy.length > 0 ? (
         <section className="mt-8">
-          <h2 className="text-sm font-medium">Later coverage</h2>
+          <h2 className="text-sm font-medium">{t('article.laterCoverage')}</h2>
           <ul className="mt-3 flex flex-col gap-2">
             {article.followedBy.map((later) => (
               <li key={later.slug} className="text-sm">

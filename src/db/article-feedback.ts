@@ -1,3 +1,4 @@
+import type { Locale } from '@/config/locales';
 import type { Database } from '@/db/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -15,7 +16,7 @@ export async function recordFeedback(
     articleId: string;
     helpful: boolean;
     voterKey: string;
-    locale: 'en' | 'ko';
+    locale: Locale;
     styleGuideVersion: string | null;
   },
 ): Promise<FeedbackOutcome> {

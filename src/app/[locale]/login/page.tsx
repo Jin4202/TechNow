@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useActionState, useState } from 'react';
 
 import { login, signUp, type AuthState } from './actions';
@@ -7,6 +8,7 @@ import { login, signUp, type AuthState } from './actions';
 type Mode = 'login' | 'signup';
 
 export default function LoginPage() {
+  const t = useTranslations('auth');
   const [mode, setMode] = useState<Mode>('login');
   const action = mode === 'login' ? login : signUp;
   const [state, formAction, pending] = useActionState<AuthState, FormData>(action, null);
@@ -16,7 +18,7 @@ export default function LoginPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">TechNow</h1>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          {mode === 'login' ? '로그인' : '계정 만들기'}
+          {mode === 'login' ? t('logInHeading') : t('signUpHeading')}
         </p>
       </div>
 
@@ -37,14 +39,14 @@ export default function LoginPage() {
                 : 'text-black/60 dark:text-white/60'
             }`}
           >
-            {m === 'login' ? '로그인' : '가입'}
+            {m === 'login' ? t('logIn') : t('signUp')}
           </button>
         ))}
       </div>
 
       <form action={formAction} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          이메일
+          {t('email')}
           <input
             name="email"
             type="email"
@@ -55,7 +57,7 @@ export default function LoginPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          비밀번호
+          {t('password')}
           <input
             name="password"
             type="password"
@@ -66,9 +68,15 @@ export default function LoginPage() {
           />
         </label>
 
-        {state?.error ? (
+        {state ? (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {state.error}
+            {t(`errors.${state.error}`)}
+            {/* Supabase 가 준 영문 원문. 왜 거절됐는지는 이쪽에만 남는다 */}
+            {state.detail ? (
+              <span className="mt-1 block text-xs text-black/50 dark:text-white/50">
+                {state.detail}
+              </span>
+            ) : null}
           </p>
         ) : null}
 
@@ -77,7 +85,7 @@ export default function LoginPage() {
           disabled={pending}
           className="mt-2 rounded-md bg-black px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
         >
-          {pending ? '처리 중…' : mode === 'login' ? '로그인' : '가입하기'}
+          {pending ? t('submitting') : mode === 'login' ? t('logInSubmit') : t('signUpSubmit')}
         </button>
       </form>
     </main>

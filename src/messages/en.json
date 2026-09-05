@@ -1,0 +1,53 @@
+{
+  "site": {
+    "name": "TechNow",
+    "tagline": "Science and technology, every morning"
+  },
+  "nav": {
+    "allArticles": "← All articles",
+    "logIn": "Log in",
+    "logOut": "Log out"
+  },
+  "home": {
+    "empty": "No new stories today"
+  },
+  "article": {
+    "sources": "Sources",
+    "sectionSources": "Sources {numbers}",
+    "follows": "Follows",
+    "laterCoverage": "Later coverage",
+    "tier": "Tier {tier}"
+  },
+  "feedback": {
+    "question": "Was this easy to follow?",
+    "yes": "Yes",
+    "no": "No",
+    "thanks": "Thanks for the feedback."
+  },
+  "notFound": {
+    "title": "Not found",
+    "body": "This page doesn't exist, or the article was unpublished.",
+    "back": "Back to articles"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "body": "We couldn't load this page. This is on our side, not yours.",
+    "retry": "Try again"
+  },
+  "auth": {
+    "logIn": "Log in",
+    "signUp": "Sign up",
+    "logInHeading": "Log in",
+    "signUpHeading": "Create an account",
+    "email": "Email",
+    "password": "Password",
+    "submitting": "Working…",
+    "logInSubmit": "Log in",
+    "signUpSubmit": "Create account",
+    "errors": {
+      "missing-fields": "Enter your email and password.",
+      "weak-password": "Passwords must be at least 6 characters.",
+      "rejected": "We couldn't sign you in."
+    }
+  }
+}

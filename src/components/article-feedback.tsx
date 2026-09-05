@@ -1,8 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useSyncExternalStore } from 'react';
 
 import { submitFeedback } from '@/app/[locale]/articles/actions';
+
+import type { Locale } from '@/config/locales';
 
 /**
  * "이해하기 쉬웠나요?" (D-28, 로드맵 3.14a).
@@ -60,12 +63,14 @@ function getVoterKey(): string | null {
 export function ArticleFeedback({
   articleId,
   styleGuideVersion,
-  locale = 'en',
+  locale,
 }: {
   articleId: string;
   styleGuideVersion: string | null;
-  locale?: 'en' | 'ko';
+  /** 어느 언어로 읽고 눌렀는지 기록한다 — 번역본이 더 어려우면 지표에 드러나야 한다 */
+  locale: Locale;
 }) {
+  const t = useTranslations('feedback');
   const stored = useVoteState(articleId);
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
@@ -96,12 +101,12 @@ export function ArticleFeedback({
     <section className="mt-10 rounded-lg border border-black/10 p-4 dark:border-white/15">
       {done ? (
         <p className="text-sm text-black/60 dark:text-white/60">
-          {locale === 'ko' ? '고맙습니다.' : 'Thanks for the feedback.'}
+          {t('thanks')}
         </p>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm">
-            {locale === 'ko' ? '이해하기 쉬웠나요?' : 'Was this easy to follow?'}
+            {t('question')}
           </p>
           <div className="flex gap-2">
             <button
@@ -110,7 +115,7 @@ export function ArticleFeedback({
               onClick={() => vote(true)}
               className="rounded-md border border-black/15 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-white/20"
             >
-              {locale === 'ko' ? '네' : 'Yes'}
+              {t('yes')}
             </button>
             <button
               type="button"
@@ -118,7 +123,7 @@ export function ArticleFeedback({
               onClick={() => vote(false)}
               className="rounded-md border border-black/15 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-white/20"
             >
-              {locale === 'ko' ? '아니요' : 'No'}
+              {t('no')}
             </button>
           </div>
         </div>

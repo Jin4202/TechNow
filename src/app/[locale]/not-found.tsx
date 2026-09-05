@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { locale as rootLocale } from 'next/root-params';
 
@@ -12,19 +13,20 @@ import { toLocale } from '@/config/locales';
 export default async function NotFound() {
   // 지원하지 않는 언어로 들어와 404 가 된 경우도 있다. 그 값을 링크에 되쓰지 않는다
   const locale = toLocale((await rootLocale()) ?? '');
+  const t = await getTranslations('notFound');
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-4 px-5 py-16 sm:px-6">
-      <h1 className="text-xl font-semibold tracking-tight">Not found</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{t('title')}</h1>
       <p className="text-sm text-black/60 dark:text-white/60">
-        This page doesn&apos;t exist, or the article was unpublished.
+        {t('body')}
       </p>
       <div>
         <Link
           href={`/${locale}`}
           className="rounded-md border border-black/15 px-3 py-1.5 text-sm dark:border-white/20"
         >
-          Back to articles
+          {t('back')}
         </Link>
       </div>
     </div>
