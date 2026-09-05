@@ -30,6 +30,7 @@
     "reference:build": "vitest run --config vitest.live.config.mts tests/live/build-reference.live.ts",
     "evaluate": "vitest run --config vitest.live.config.mts tests/live/evaluate.live.ts",
     "articles:read": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/read-articles.live.ts",
+    "translate:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/translate.live.ts",
     "cost:report": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cost-report.live.ts"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { envInt } from './tunables';
+import { envInt, envNumber } from './tunables';
 
 /**
  * 토픽 선정 튜닝 값.
@@ -82,6 +82,20 @@ export const thresholds = {
 
   /** 채점 호출 동시 실행 수. 레이트 리밋과 지연 사이의 절충 */
   scoringConcurrency: 4,
+
+  /**
+   * 번역본이 한국어인지 판정하는 최소 한글 비율 (4.3a).
+   *
+   * 구조 검증만으로는 모델이 영문을 그대로 돌려주는 실패를 못 잡는다 —
+   * 구조는 완벽히 일치하고 내용만 번역되지 않은 채로 통과한다.
+   *
+   * 0.5 인 이유: 고유명사(기관·장비·인명)와 용어 병기는 영문으로 남는 것이 정상이라
+   * 정상적인 번역도 100% 가 되지 않는다. 실측으로 조정할 값이라 env 로 뺀다.
+   * env: TECHNOW_MIN_HANGUL_RATIO
+   */
+  get minHangulRatio() {
+    return envNumber('TECHNOW_MIN_HANGUL_RATIO', 0.5);
+  },
 };
 
 export type Thresholds = typeof thresholds;
