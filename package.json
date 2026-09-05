@@ -13,11 +13,13 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:secrets",
     "db:types": "supabase gen types typescript --local > src/db/types.ts",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "feeds:live": "vitest run --config vitest.live.config.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.115.0",
+    "fast-xml-parser": "^5.11.1",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
