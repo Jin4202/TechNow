@@ -4,7 +4,14 @@
  * 검색 결과 URL을 코드에서 걸러낸다. 프롬프트에 맡기지 않는 이유는
  * tier 판정과 페이월 스킵이 재현 가능해야 하기 때문이다 (MASTER_PLAN §3).
  *
- * TODO(3.3): 도메인 목록을 채우고 혼합 URL 목록으로 검증한다.
+ * **커버리지 편향 주의.** 이 목록은 작성자가 아는 범위를 반영한다.
+ * 실측에서 물리·우주는 두텁고 의학·바이오는 얇았다 — 수면무호흡 신약 토픽에서
+ * 검색 결과 20건이 전부 `unknown` 으로 걸러져 조사가 실패했다.
+ * 그중에는 제조사 자체 발표와 학술 출판 플랫폼처럼 명백한 1차 출처가 있었다.
+ *
+ * 추측으로 늘리지 말고 **실제로 걸러진 도메인을 보고** 근거와 함께 추가한다.
+ * 조사 단계가 `unknown` 사유로 버린 호스트를 로그에 남기므로 (3.5),
+ * 3.17 품질 리뷰에서 그것을 보고 넓힌다.
  */
 
 /**
@@ -21,14 +28,27 @@ export const tier1Domains: readonly string[] = [
   'sciencedirect.com', 'wiley.com', 'frontiersin.org', 'elifesciences.org',
   // 프리프린트
   'arxiv.org', 'biorxiv.org', 'medrxiv.org', 'chemrxiv.org', 'ssrn.com',
+  // 출판 플랫폼. 논문 본문이 여기 있다
+  'academic.oup.com', 'oup.com', 'tandfonline.com', 'sagepub.com',
+  'cambridge.org', 'embopress.org', 'ieee.org', 'acm.org', 'optica.org',
+  'ahajournals.org', 'aacrjournals.org', 'jci.org', 'physiology.org',
+  'asm.org', 'jneurosci.org', 'annualreviews.org',
+  // DOI 리졸버. 출판사 페이지로 리다이렉트된다
+  'doi.org',
+  // 전문 학회 — 학회 발표와 학술지를 낸다
+  'aasm.org', 'thoracic.org', 'heart.org', 'asco.org', 'aan.com', 'acc.org',
+  'ashg.org', 'aaas.org',
   // 우주 기관
   'nasa.gov', 'esa.int', 'jaxa.jp', 'isro.gov.in', 'spacex.com', 'blueorigin.com',
   // 연구소
   'cern.ch', 'home.cern', 'fnal.gov', 'lbl.gov', 'ornl.gov', 'llnl.gov', 'anl.gov',
   'pnnl.gov', 'sandia.gov', 'nrel.gov', 'jpl.nasa.gov', 'mpg.de', 'cnrs.fr',
   'riken.jp', 'csiro.au', 'fraunhofer.de',
-  // 보도자료 배포. 애그리게이터가 아니라 기관 발표를 그대로 싣는 곳이다
-  'eurekalert.org',
+  // 보도자료 배포. 애그리게이터가 아니라 발표문을 그대로 싣는 곳이다.
+  // prnewswire 계열은 일반 기업 홍보도 실으므로 내용은 채점이 거른다 —
+  // 제3자 검증 없는 기업 발표는 impact 3 을 넘지 못한다 (docs/RUBRIC.md)
+  'eurekalert.org', 'prnewswire.com', 'businesswire.com', 'globenewswire.com',
+  'newswise.com',
   // 기업 연구 블로그 — 1차 발표이지만 제3자 검증이 없다.
   // 채점에서 impact 3 이상을 주지 않는다 (docs/RUBRIC.md 회색지대)
   'deepmind.google', 'openai.com', 'anthropic.com', 'ai.meta.com',
