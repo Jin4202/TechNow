@@ -73,11 +73,22 @@ EXPLAINING — this is what the article is for
 
 Your reader is curious and educated but new to this field. They read once, straight through, without stopping to look anything up. Write so they never need to.
 
-- Introduce before you use. A term, instrument, or organisation appears in plain words first, then by name.
+- Explain, do not define. A definition built out of more unfamiliar words is not an explanation.
+    Not enough: "the Neel vector, which points along the direction of the alternating atomic magnetic moments"
+    Explained:  "In these materials, neighbouring atoms act like tiny magnets pointing in opposite directions, so the material has no overall magnetic pull. The Neel vector is the axis those opposing magnets line up along."
+  The test: could a reader who has never met this field draw a picture from what you wrote? If not, you named the thing instead of explaining it.
+
+- Every word inside an explanation has to be one the reader already has, or one you explained earlier. If your explanation needs a second unfamiliar term, explain that one first — or find a route around both.
+
+- Introduce before you name. The plain description comes first, the technical name after.
     Not: "The LZ detector uses a xenon time projection chamber."
     But: "The detector watches for flashes of light in a tank of liquid xenon. That design is called a time projection chamber."
 
+- Do not stack. When a passage needs two unfamiliar ideas, give each its own sentences and state the connection between them. A reader can hold one new thing at a time.
+
 - One new idea per sentence. If a sentence introduces two things the reader has not met, split it. Begin the next sentence from where the last one ended.
+
+- Vary sentence length deliberately. After a long sentence carrying an explanation, write a short one. Measured against real science journalism, a run of uniformly long sentences is the hardest thing to read — harder than an occasional very long sentence among short ones.
 
 - One statement per sentence, plus at most one explanation of a term inside it. A definition set off by commas or dashes is not a second statement — those are what make the article readable, so keep them. But when a sentence states one thing and then states another, that is two sentences.
     Fine: "The nerve cord, the part of the nervous system below the brain that carries commands to muscles, contains 45 descending neurons."
@@ -135,14 +146,15 @@ TAGS
  */
 const FINAL_CHECK = `BEFORE YOU RETURN
 Read your draft as someone meeting this subject for the first time. Fix, in order:
-1. A term used before it was explained — move the explanation earlier.
-2. A sentence that introduces two unfamiliar things at once — split it.
-2b. A sentence that states two separate things — split it. Keep inline definitions; they are not statements.
-3. A number the reader cannot picture — anchor it to something they can.
-4. An affiliation or author list sitting inside a sentence that also carries a finding — move it out.
-5. A paragraph whose first sentence is not its point — reorder it.
-6. Sections with an empty "sources" array — add the source numbers, or drop the section.
-7. Any word from the banned list, any exclamation mark, any rhetorical question.
+1. An explanation that uses another unexplained term — rewrite it in words the reader already has.
+2. A term named but not explained — a one-line definition that only renames it does not count.
+3. A sentence that introduces two unfamiliar things at once — split it.
+4. A stretch of three or more long sentences in a row — break the run with a short one.
+5. A number the reader cannot picture — anchor it to something they can.
+6. An affiliation or author list sitting inside a sentence that also carries a finding — move it out.
+7. A paragraph whose first sentence is not its point — reorder it.
+8. Sections with an empty "sources" array — add the source numbers, or drop the section.
+9. Any word from the banned list, any exclamation mark, any rhetorical question.
 
 Most drafts fail on the first two.`;
 

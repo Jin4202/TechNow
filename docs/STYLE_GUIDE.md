@@ -72,12 +72,21 @@ body.sections[]    3~5개. 각각 heading + paragraphs + sources
 
 ### 전문용어
 
-**처음 나올 때 짧게 풀어준다.** 괄호 한 개 분량으로.
+**정의가 아니라 설명이다.** 낯선 용어를 또 다른 낯선 용어로 풀면 설명이 아니다.
 
 - 좋음: `a connectome (a complete wiring diagram of a brain)`
 - 좋음: `superconductivity — the ability to carry current with no resistance`
 - 나쁨: 설명 없이 그냥 쓰기
 - 나쁨: 세 문장짜리 배경 설명 (기사가 교과서가 된다)
+- **나쁨**: `the Néel vector, which points along the direction of the alternating atomic
+  magnetic moments` — 정의는 있지만 "교대하는 원자 자기 모멘트"가 용어만큼이나 낯설다.
+  실측에서 이 유형이 이해도 2/5 를 만들었다 (D-31)
+
+**판정 기준**: 이 분야를 처음 보는 독자가 그 설명만으로 **그림을 그릴 수 있는가.**
+못 그리면 이름을 댄 것이지 설명한 것이 아니다.
+
+**설명 안의 모든 단어는 독자가 이미 가진 것이거나 앞에서 푼 것이어야 한다.**
+설명에 또 낯선 용어가 필요하면 그것을 먼저 풀거나, 둘 다 우회하는 길을 찾는다.
 
 용어를 피할 수 있으면 피한다. 다만 **정확도를 희생하면서까지 쉽게 쓰지는 않는다.**
 독자가 이 기사를 읽고 원문을 찾아볼 수 있어야 한다.
