@@ -47,3 +47,9 @@ next-env.d.ts
 
 # trigger.dev 로컬 개발 산출물
 .trigger
+
+# 생성물 (사람이 읽는 용도)
+out/
+
+# 기준 코퍼스 원문 — 지표(metrics.json)만 커밋한다
+fixtures/reference/articles/

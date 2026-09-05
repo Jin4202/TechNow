@@ -7,6 +7,11 @@ import { CATEGORIES } from '@/config/categories';
  *
  * 기준의 원본은 docs/STYLE_GUIDE.md 다. 여기 없는 규칙을 프롬프트에만 넣지 않는다.
  *
+ * **수치를 지시로 쓰지 않는다** (D-27). 모델은 생성하면서 단어를 세지 않으므로
+ * "평균 20단어", "600~900단어" 같은 지시는 수행될 수 없다. 실측에서
+ * 작은 정수의 구조 단위("3~5개 섹션")는 100% 지켜졌고 누적 수치는 계속 어겨졌다.
+ * 목표는 이해 가능성이고, 문장 길이는 그것의 대리 지표였다.
+ *
  * 출처 블록은 buildGroundedMessages 가 앞에 붙인다 (D-06). 이 파일은
  * **지시문만** 만든다 — 출처를 여기서 다시 넣으면 캐시 구조가 깨진다.
  */
@@ -33,7 +38,7 @@ export const DraftArticleSchema = z.object({
 
 export type DraftArticle = z.infer<typeof DraftArticleSchema>;
 
-const CATEGORY_LIST = CATEGORIES.map((c) => `  ${c.value} — ${c.description}`).join('\n');
+const CATEGORY_LIST = CATEGORIES.map((c) => `  ${c.value} — ${c.descriptionEn}`).join('\n');
 
 /**
  * 작성 지시문.
@@ -44,8 +49,8 @@ export const WRITE_INSTRUCTIONS = `Write the article.
 
 STRUCTURE
 - 3 to 5 sections. Two is a summary, six loses the reader.
-- Each section: 1 to 3 paragraphs, 3 to 5 sentences per paragraph.
-- 600 to 900 words total.
+- Each section: 1 to 3 paragraphs, 3 to 5 sentences each.
+- Aim for 600 to 900 words. Two reasons, and the second matters more: past 900 the reader stops before the end, and every extra paragraph adds claims that must each be traceable to a source. A longer article is a more fragile one.
 - Every section's "sources" array must be non-empty. A section with no source is a section you should not write.
 
 A workable order, not a required one:
@@ -64,22 +69,39 @@ TITLE AND SUMMARY
 - Under 14 words. A title with a comma splice is usually two ideas; keep the first.
 - The summary says why it matters. It is not the title again.
 
-SENTENCES — this is the rule most often broken, so check it
-- One piece of information per sentence. If a sentence contains two facts joined by a comma or "and", it is two sentences.
-- Target average: 20 words. Your draft will be measured; an average above 24 fails.
-- Nothing over 40 words.
-- Attributions and affiliations are what push sentences past the limit. Split them off:
+EXPLAINING — this is what the article is for
 
-  Too long (41 words):
-    "Researchers led by Greg Jefferis's group at the MRC Laboratory of Molecular Biology, working with HHMI's Janelia Research Campus and Google Research, published the connectome of a male fruit fly, the second complete fly brain to be mapped."
+Your reader is curious and educated but new to this field. They read once, straight through, without stopping to look anything up. Write so they never need to.
 
-  Fixed (12 + 16 words):
-    "A team at the MRC Laboratory of Molecular Biology published the male fly connectome. Janelia Research Campus and Google Research contributed to the reconstruction, the second complete fly brain mapped."
+- Introduce before you use. A term, instrument, or organisation appears in plain words first, then by name.
+    Not: "The LZ detector uses a xenon time projection chamber."
+    But: "The detector watches for flashes of light in a tank of liquid xenon. That design is called a time projection chamber."
 
-  The second version says the same things. It just stops between them.
+- One new idea per sentence. If a sentence introduces two things the reader has not met, split it. Begin the next sentence from where the last one ended.
+
+- One statement per sentence, plus at most one explanation of a term inside it. A definition set off by commas or dashes is not a second statement — those are what make the article readable, so keep them. But when a sentence states one thing and then states another, that is two sentences.
+    Fine: "The nerve cord, the part of the nervous system below the brain that carries commands to muscles, contains 45 descending neurons."
+    Not fine: "The nerve cord contains 45 descending neurons, the team traced each one to its target muscle, and the pattern matched what earlier work had predicted."
+    That last one is three statements. Write it as three sentences.
+
+- Say why, not only what. When a result follows from a method, state the link.
+    Not: "The team cooled the sample to 20 millikelvin and saw the transition."
+    But: "Superconductivity only appears near absolute zero. The team cooled the sample to 20 millikelvin, and the transition appeared."
+
+- Anchor numbers to something the reader can picture.
+    Not: "an orbit 1.5 million kilometres from Earth"
+    But: "an orbit four times farther out than the Moon"
+
+- Keep names out of the way. An affiliation or an author list goes in its own sentence, after the finding — never inside the sentence that carries it.
+    Not: "Researchers led by Greg Jefferis's group at the MRC Laboratory of Molecular Biology, working with HHMI's Janelia Research Campus and Google Research, published the connectome of a male fruit fly, the second complete fly brain to be mapped."
+    But: "A team at the MRC Laboratory of Molecular Biology published the male fly connectome. It is the second complete fly brain to be mapped. Janelia Research Campus and Google Research contributed to the reconstruction."
+
+- A paragraph makes one point. Its first sentence states the point; the rest supply the specifics.
+
+- Read each sentence as someone who does not know the field. If you would have to stop and re-read it, split it or explain the missing piece first.
+
 - Active voice unless the actor does not matter.
 - Concrete numbers, not "significantly improved".
-- The first sentence of a paragraph is its point; the rest support it.
 
 TERMS
 - Explain a technical term the first time, in about a parenthesis worth:
@@ -108,18 +130,21 @@ TAGS
 /**
  * 반환 직전 자가 점검.
  *
- * 지시만으로는 문장 길이가 지켜지지 않았다 (실측 평균 38 → 예시 추가 후 27.7).
- * 체크리스트를 마지막에 두면 모델이 초안을 실제로 다시 훑는다.
+ * 항목이 전부 **구조적으로 확인 가능한 것**이다 — 세지 않아도 보면 안다 (D-27).
+ * 수치 점검("평균 20단어")을 넣었을 때는 지켜지지 않았다. 모델은 생성 중에 세지 않는다.
  */
 const FINAL_CHECK = `BEFORE YOU RETURN
-Read your draft back once and fix these, in this order:
-1. Any sentence over 40 words — split it.
-2. Sentences that pack an affiliation or a list into the main clause — move that to its own sentence.
-3. Sections with an empty "sources" array — add the source numbers, or drop the section.
-4. Any word from the banned list, any exclamation mark, any rhetorical question.
-5. A summary that only restates the title — rewrite it to say why the result matters.
+Read your draft as someone meeting this subject for the first time. Fix, in order:
+1. A term used before it was explained — move the explanation earlier.
+2. A sentence that introduces two unfamiliar things at once — split it.
+2b. A sentence that states two separate things — split it. Keep inline definitions; they are not statements.
+3. A number the reader cannot picture — anchor it to something they can.
+4. An affiliation or author list sitting inside a sentence that also carries a finding — move it out.
+5. A paragraph whose first sentence is not its point — reorder it.
+6. Sections with an empty "sources" array — add the source numbers, or drop the section.
+7. Any word from the banned list, any exclamation mark, any rhetorical question.
 
-Most drafts fail on the first two. Expect to split three or four sentences.`;
+Most drafts fail on the first two.`;
 
 export function buildWriteInstructions(topicTitle: string): string {
   return `${WRITE_INSTRUCTIONS}
