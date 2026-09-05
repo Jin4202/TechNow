@@ -157,3 +157,24 @@ describe('parseFeed — HTML 엔티티', () => {
     expect(withEntities('&lt;p&gt;a &amp;lt;script&amp;gt; b&lt;/p&gt;')).toBe('a <script> b');
   });
 });
+
+describe('parseFeed — 제목의 엔티티', () => {
+  const titled = (title: string) =>
+    parseFeed(
+      `<rss version="2.0"><channel><item>
+        <title>${title}</title><link>https://example.org/t</link>
+      </item></channel></rss>`,
+      'x',
+    )[0]!.title;
+
+  it('제목에 남은 숫자 엔티티를 푼다', () => {
+    // phys.org 가 실제로 이렇게 보낸다: Bennu&#039;s surface
+    expect(titled('Bennu&amp;#039;s surface')).toBe("Bennu's surface");
+  });
+
+  it('제목을 감싼 따옴표 엔티티도 푼다', () => {
+    expect(titled('&amp;#039;Hidden order&amp;#039; in disorder')).toBe(
+      "'Hidden order' in disorder",
+    );
+  });
+});

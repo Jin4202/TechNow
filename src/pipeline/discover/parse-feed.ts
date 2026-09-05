@@ -118,7 +118,8 @@ export function parseFeed(xml: string, feedName: string): FeedItem[] {
 
   for (const entry of raw) {
     const url = isAtom ? atomLink(entry) : asText(entry.link);
-    const title = asText(entry.title);
+    // 제목에도 엔티티가 남는다. phys.org 는 &#039; 를 그대로 실어 보낸다
+    const title = decodeEntities(asText(entry.title));
 
     // URL 이나 제목이 없으면 토픽 후보가 될 수 없다
     if (!url || !title) continue;
