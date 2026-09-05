@@ -52,12 +52,23 @@ export interface RescoreResult {
 }
 
 /**
- * 임계선 ±band 안인가.
+ * 재채점할 토픽을 고른다 (D-19).
  *
- * 기획서 §2.1 — "총점이 임계값의 2점 안에 드는 토픽"
+ * 1차 점수 상위 N개. 동점이면 먼저 온 순서를 유지해 결정적으로 만든다.
+ *
+ * 기획서의 "임계선 ±2" 밴드 방식을 대체했다. 밴드는 대상 수가 점수 분포에
+ * 따라 요동치는데(실측 134개 중 72개), 상한이 3인 이상 실제로 판단이
+ * 필요한 건 상위 몇 개뿐이다.
  */
-export function needsRescore(total: number): boolean {
-  return Math.abs(total - thresholds.total) <= thresholds.rescoreBand;
+export function selectForRescore<T extends { total: number }>(
+  scored: readonly T[],
+  limit: number = thresholds.rescoreTopN,
+): T[] {
+  return scored
+    .map((score, order) => ({ score, order }))
+    .sort((a, b) => b.score.total - a.score.total || a.order - b.order)
+    .slice(0, limit)
+    .map((entry) => entry.score);
 }
 
 export async function rescoreTopics(

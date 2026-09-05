@@ -1,32 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { thresholds } from '@/config/thresholds';
-import { needsRescore, rescoreTopics } from '@/pipeline/score/rescore';
+import { rescoreTopics, selectForRescore } from '@/pipeline/score/rescore';
 import { createFetchContext } from '@/pipeline/research/fetch-page';
 import { buildRescorePrompt } from '@/prompts/score-topics';
 
 import type { AnthropicClient } from '@/clients/anthropic';
 import type { ScoredTopic } from '@/pipeline/score/score-topics';
 
-describe('needsRescore', () => {
-  const { total, rescoreBand } = thresholds;
+describe('selectForRescore (D-19)', () => {
+  const t = (index: number, total: number) => ({ index, total });
 
-  it('임계값 바로 위아래는 재채점 대상', () => {
-    expect(needsRescore(total)).toBe(true);
-    expect(needsRescore(total - rescoreBand)).toBe(true);
-    expect(needsRescore(total + rescoreBand)).toBe(true);
+  it('1차 점수 상위 N개를 고른다', () => {
+    const scored = [t(0, 7), t(1, 13), t(2, 9), t(3, 11), t(4, 15)];
+    expect(selectForRescore(scored, 3).map((s) => s.total)).toEqual([15, 13, 11]);
   });
 
-  it('밴드 밖은 fetch 하지 않는다', () => {
-    // 명확히 위/아래인 토픽은 원문을 봐도 결론이 안 바뀐다.
-    // 페이지 수집이 고정비에서 가장 비싸다
-    expect(needsRescore(total - rescoreBand - 1)).toBe(false);
-    expect(needsRescore(total + rescoreBand + 1)).toBe(false);
+  it('대상이 N개보다 적으면 전부 고른다', () => {
+    expect(selectForRescore([t(0, 9), t(1, 12)], 5)).toHaveLength(2);
   });
 
-  it('최저·최고점은 대상이 아니다', () => {
-    expect(needsRescore(3)).toBe(false);
-    expect(needsRescore(15)).toBe(false);
+  it('동점이면 먼저 온 순서를 유지한다 (결정적)', () => {
+    const scored = [t(10, 12), t(11, 12), t(12, 12)];
+    expect(selectForRescore(scored, 2).map((s) => s.index)).toEqual([10, 11]);
+  });
+
+  it('빈 입력은 빈 결과', () => {
+    expect(selectForRescore([], 5)).toEqual([]);
+  });
+
+  it('밴드와 달리 대상 수가 분포에 흔들리지 않는다', () => {
+    // 점수가 몰려 있어도 상위 N개만 본다. 밴드 방식은 여기서 폭증했다
+    const clustered = Array.from({ length: 100 }, (_, i) => t(i, 10));
+    expect(selectForRescore(clustered, 9)).toHaveLength(9);
+  });
+
+  it('기본값은 상한의 3배다', () => {
+    // 재채점이 점수를 낮출 수 있으므로 여유를 둔다
+    expect(thresholds.rescoreTopN).toBe(thresholds.dailyCap * 3);
   });
 });
 
