@@ -210,6 +210,16 @@ grant 를 더해야 앱에서 보인다 — 잊으면 노출이 아니라 미표
 
 `scraps` 에 update 를 주지 않은 것은 의도적이다. 수정할 필드가 없다.
 
+**service_role 도 명시적으로 부여해야 한다** (`20260905050000_service_role_grants.sql`).
+처음에는 anon/authenticated 만 다루고 service_role 은 Supabase 기본값에 기댔는데,
+"Automatically expose new tables" 를 끈 클라우드에서는 service_role 도 아무 권한을
+받지 못한다. 로컬 라이브 테스트는 전부 통과하는데 배포된 파이프라인만
+`permission denied for table pipeline_runs` 로 죽었다.
+
+service_role 은 RLS 를 우회하지만(BYPASSRLS) **테이블 grant 는 따로 필요하다.**
+anon/authenticated 와 달리 화이트리스트로 관리하지 않고 `grant all on all tables`
++ default privileges 로 준다. 파이프라인은 모든 테이블에 접근해야 한다.
+
 ---
 
 ## 참고 — Next 16 변경점 (결정이 아니라 사실)
