@@ -19,14 +19,17 @@
     "daily:live": "vitest run --config vitest.live.config.mts tests/live/run-daily.live.ts",
     "seed": "vitest run --config vitest.live.config.mts tests/live/seed.live.ts",
     "group:live": "vitest run --config vitest.live.config.mts tests/live/group-topics.live.ts",
-    "score:live": "vitest run --config vitest.live.config.mts tests/live/score-topics.live.ts"
+    "score:live": "vitest run --config vitest.live.config.mts tests/live/score-topics.live.ts",
+    "fetch:live": "vitest run --config vitest.live.config.mts tests/live/fetch-page.live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
+    "@mozilla/readability": "^0.6.0",
     "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.115.0",
     "@trigger.dev/sdk": "^4.5.16",
     "fast-xml-parser": "^5.11.1",
+    "linkedom": "^0.18.13",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",

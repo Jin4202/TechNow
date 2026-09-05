@@ -58,5 +58,8 @@ export const feeds: readonly Feed[] = [
   },
 ] as const;
 
-/** 수집기가 보내는 User-Agent */
-export const FEED_USER_AGENT = 'TechNowBot/0.1 (+https://technow-seven.vercel.app)';
+/**
+ * 수집기가 보내는 User-Agent.
+ * 페이지 수집과 같은 값을 쓴다 — 차단당하면 한 곳만 고치면 된다
+ */
+export { USER_AGENT as FEED_USER_AGENT } from './http';

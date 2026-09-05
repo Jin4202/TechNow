@@ -102,3 +102,46 @@ export function buildScoringPrompt(topics: readonly ScoringTopicInput[]): string
     })
     .join('\n\n');
 }
+
+/**
+ * 근접 재채점 프롬프트 (로드맵 2.5).
+ *
+ * 1차 채점은 RSS 설명만 봤다. 임계선 근처 토픽은 원문을 가져와 다시 본다.
+ * 시스템 프롬프트(기준)는 1차와 같은 것을 쓴다 — 기준이 달라지면 두 점수를
+ * 비교할 수 없다.
+ */
+
+/** 본문을 통째로 넣지 않는다. 앞부분에 핵심이 있고, 뒤로 갈수록 부록이다 */
+const MAX_ARTICLE_CHARS = 6000;
+
+export interface RescoreTopicInput {
+  title: string;
+  /** 1차 채점 결과. 무엇이 달라졌는지 모델이 알 수 있게 넣는다 */
+  firstPass: { novelty: number; impact: number; interest: number };
+  articleTitle: string | null;
+  articleText: string;
+  followUpOfTitle?: string | null;
+}
+
+export function buildRescorePrompt(topic: RescoreTopicInput): string {
+  const lines = [
+    `Topic 1: ${topic.title}`,
+    '',
+    'You scored this topic from the feed summary alone as ' +
+      `novelty ${topic.firstPass.novelty}, impact ${topic.firstPass.impact}, ` +
+      `interest ${topic.firstPass.interest}. Below is the full source article. ` +
+      'Score it again from the article. Change a score only if the article shows the ' +
+      'first pass was wrong; agreeing with yourself is a valid outcome.',
+  ];
+
+  if (topic.followUpOfTitle) {
+    lines.push('', `Follow-up to our published article: "${topic.followUpOfTitle}"`);
+  }
+
+  lines.push('', '--- SOURCE ARTICLE ---');
+  if (topic.articleTitle) lines.push(topic.articleTitle);
+  lines.push(topic.articleText.slice(0, MAX_ARTICLE_CHARS).trim());
+  lines.push('--- END ---');
+
+  return lines.join('\n');
+}

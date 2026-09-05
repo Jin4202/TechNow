@@ -29,3 +29,25 @@ export const paywallMarkers: readonly string[] = [
 
 /** 이보다 짧게 추출되면 페이월이나 추출 실패로 본다 (문자 수) */
 export const minExtractedChars = 800;
+
+/**
+ * 협찬 기사 표시.
+ *
+ * 제목만으로는 알 수 없다 — IEEE Spectrum 의
+ * "Protecting Dynamic Industrial Robot Cable Carriers" 는 제목이 멀쩡한데
+ * 본문 첫 줄이 "This article is brought to you by ..." 였다.
+ * 저비용 필터(2.1)는 제목만 보므로 여기서 잡는다.
+ *
+ * 협찬 기사는 출처가 될 수 없다 (기획서 §2.2 의 제외 목록).
+ */
+export const sponsoredMarkers: readonly string[] = [
+  'brought to you by',
+  'sponsored content',
+  'paid content',
+  'in partnership with',
+  'this post is sponsored',
+  'advertorial',
+] as const;
+
+/** 협찬 표시는 본문 앞부분에 온다. 뒤쪽의 우연한 일치를 피한다 */
+export const sponsoredCheckChars = 500;
