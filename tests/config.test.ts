@@ -39,7 +39,7 @@ describe('thresholds', () => {
 });
 
 describe('models', () => {
-  it('출처 본문을 읽는 4단계가 전부 같은 모델이다 (D-06)', () => {
+  it('출처 본문을 읽는 단계가 전부 같은 모델이다 (D-06)', () => {
     // 하나라도 다르면 prompt cache 프리픽스가 깨지고 예산이 무너진다.
     // 비용 최적화로도 건드리지 말 것.
     const used = new Set(Object.values(sourceReadingModels));
@@ -47,13 +47,17 @@ describe('models', () => {
     expect(used.has(MODEL_SONNET)).toBe(true);
   });
 
-  it('4단계가 write/extractClaims/verifyClaims/rewrite 로 유지된다', () => {
+  it('출처를 읽는 단계는 write/verifyClaims/rewrite 다 (D-24)', () => {
+    // 클레임 추출은 기사만 읽으므로 여기 없다
     expect(Object.keys(sourceReadingModels).sort()).toEqual([
-      'extractClaims',
       'rewrite',
       'verifyClaims',
       'write',
     ]);
+  });
+
+  it('클레임 추출은 Haiku 다 (D-24)', () => {
+    expect(models.extractClaims).toBe(MODEL_HAIKU);
   });
 
   it('모든 단계가 알려진 모델 ID 중 하나를 쓴다', () => {

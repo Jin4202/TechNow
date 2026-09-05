@@ -17,18 +17,19 @@ export const MODEL_HAIKU = 'claude-haiku-4-5';
 /**
  * 출처 본문을 프롬프트에 싣는 단계들.
  *
- * ⚠️ 네 단계가 모두 같은 모델이어야 prompt cache 프리픽스를 공유한다 (D-06).
- * 하나라도 다른 모델로 바꾸면 그 단계는 캐시를 못 쓰고 20k 토큰짜리 출처 블록을
- * 매번 새로 지불한다. 예산($0.20/기사, D-07)이 이 공유를 전제로 잡혀 있다.
+ * ⚠️ 이 단계들은 모두 같은 모델이어야 prompt cache 프리픽스를 공유한다 (D-06).
+ * 하나라도 다른 모델로 바꾸면 그 단계는 캐시를 못 쓰고 12k 토큰짜리 출처 블록을
+ * 매번 새로 지불한다. 예산(D-07)이 이 공유를 전제로 잡혀 있다.
  *
  * 비용 최적화를 하더라도 여기는 건드리지 말 것.
  * tests/config.test.ts 가 이 불변식을 지킨다.
+ *
+ * **클레임 추출은 여기 없다** (D-24). 기사만 읽고 검증 가능한 진술을 뽑는
+ * 작업이라 출처가 필요 없다. D-06 은 추출도 출처를 읽는다고 전제했는데 틀렸다.
  */
 export const sourceReadingModels = {
-  /** 기사 작성 */
+  /** 기사 작성 — 캐시를 만드는 쪽 */
   write: MODEL_SONNET,
-  /** 검증 가능한 클레임 추출 */
-  extractClaims: MODEL_SONNET,
   /** 클레임을 출처 본문과 대조 */
   verifyClaims: MODEL_SONNET,
   /** 검증 실패 시 재작성 (1회) */
@@ -40,6 +41,11 @@ export const sourceReadingModels = {
  * 캐시와 무관하므로 비용 로그를 보고 자유롭게 재배정할 수 있다.
  */
 export const otherModels = {
+  /**
+   * 검증 가능한 클레임 추출 (D-24).
+   * 기사만 읽으므로 출처 캐시와 무관하다. Haiku 로 충분하고 더 싸다
+   */
+  extractClaims: MODEL_HAIKU,
   /** 같은 사건 묶기 + follow-up 판정 */
   group: MODEL_HAIKU,
   /** 1차 중요도 채점 (RSS 설명만 보고) */
