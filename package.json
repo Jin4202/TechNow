@@ -15,7 +15,8 @@
     "db:types": "supabase gen types typescript --local > src/db/types.ts",
     "db:reset": "supabase db reset",
     "feeds:live": "vitest run --config vitest.live.config.mts",
-    "db:live": "vitest run --config vitest.live.config.mts tests/live/seen-items.live.ts"
+    "db:live": "vitest run --config vitest.live.config.mts tests/live/seen-items.live.ts",
+    "daily:live": "vitest run --config vitest.live.config.mts tests/live/run-daily.live.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

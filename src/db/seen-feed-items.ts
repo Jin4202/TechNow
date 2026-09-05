@@ -20,8 +20,10 @@ export async function getSeenRows(
   if (urlHashes.length === 0) return [];
 
   const rows: SeenRow[] = [];
-  // in() 은 URL 길이 제한이 있으므로 나눠서 조회한다
-  const CHUNK = 500;
+  // in() 은 필터가 URL 쿼리스트링에 들어간다. sha256 해시는 64자라
+  // 청크가 크면 게이트웨이가 "URI too long" 으로 거절한다.
+  // 50 × (64자 + 구분자) ≈ 3.5KB 로 8KB 한도 안에 든다
+  const CHUNK = 50;
 
   for (let i = 0; i < urlHashes.length; i += CHUNK) {
     const { data, error } = await db
@@ -71,7 +73,8 @@ export async function markProcessed(
   if (urlHashes.length === 0) return 0;
 
   let updated = 0;
-  const CHUNK = 500;
+  // getSeenRows 와 같은 이유로 작게 자른다
+  const CHUNK = 50;
 
   for (let i = 0; i < urlHashes.length; i += CHUNK) {
     const { error, count } = await db
