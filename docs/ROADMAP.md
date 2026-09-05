@@ -11,14 +11,17 @@
 
 ## 현재 위치
 
-**Phase 0 완료. Phase 1 미착수.**
+**Phase 0 완료. Phase 1 진행 중.**
 
 - 구조 리뷰 9개 항목 확정 → `DECISIONS.md` D-01~D-09 (`1.0a` 완료)
 - Phase 0 실행 중 결정 5건 → `DECISIONS.md` D-10~D-14
 - 앱이 basic auth 뒤에서 Vercel에 떠 있고, CI가 typecheck·lint·test·시크릿검사를 돌린다
 - Supabase 로컬 스택 기동 중 (스키마는 아직 없음)
 
-다음 할 일: `1.0` 7개 카테고리와 한국어 명칭, 피드 범위, config 기본값을 `DECISIONS.md`에 확정.
+다음 할 일: `1.2` Supabase Auth 가입/로그인/로그아웃.
+
+Phase 1 진행: `1.0` `1.1` `1.1a` 완료. 스키마와 RLS는 **로컬 스택에만** 적용된 상태이며,
+클라우드 Supabase 프로젝트 생성과 마이그레이션 push는 아직 남아 있다.
 
 ---
 
@@ -46,10 +49,10 @@
 
 | # | 태스크 | 완료 기준 |
 |---|---|---|
-| 1.0 | `docs/DECISIONS.md`에 7개 카테고리와 한국어 명칭, 피드 범위, config 기본값 추가 (파일은 이미 존재) | 카테고리 enum이 확정되고 "미기록" 표의 해당 행이 지워짐 |
+| ~~1.0~~ | ~~카테고리 7종 한국어 명칭, 피드 선정 기준~~ | **완료.** D-15 / D-16, `src/config/categories.ts` |
 | ~~1.0a~~ | ~~**[추가]** 구조 리뷰 9개 항목 확정~~ | **완료.** `DECISIONS.md` D-01~D-09 |
-| 1.1 | Supabase 프로젝트 생성, `MASTER_PLAN` §4 + `ARCHITECTURE` §4 전 테이블 마이그레이션 | 테이블 생성됨 |
-| 1.1a | **[추가]** 전 테이블 RLS 활성화 + 정책 (D-02, `ARCHITECTURE` §4 표) | anon 키로 draft 기사·`pipeline_runs`·`source_texts` 조회 시 모두 0행 |
+| ~~1.1~~ | ~~전 테이블 마이그레이션~~ | **완료.** 로컬 스택에 적용됨. 클라우드 프로젝트는 아직 |
+| ~~1.1a~~ | ~~전 테이블 RLS 활성화 + 정책~~ | **완료.** anon 키로 draft·파이프라인 테이블 접근 불가 확인 |
 | 1.2 | Supabase Auth 가입 / 로그인 / 로그아웃 | 새 계정으로 로그인·로그아웃 가능 |
 | 1.3 | 가입 시 profile 자동 생성 (`locale`, `premium` 기본값) | 가입 후 profile 행이 생김 |
 | 1.4 | Trigger.dev 초기화, hello-world 스케줄 태스크 1개 | 대시보드 테스트 버튼과 스케줄 양쪽에서 실행됨 |

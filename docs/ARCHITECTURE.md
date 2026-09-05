@@ -186,7 +186,8 @@ seen_feed_items                                              [D-01]
 articles
   id, slug (unique), category (enum 7종), tags[]
   score_novelty, score_impact, score_interest, importance_score
-  topic_hash               [추가] 멱등성 키
+  run_id                   [추가] 생성한 런. topic_hash 와 묶어 멱등성 키
+  topic_hash               [추가] 그룹핑 결과의 정규화 해시
   follow_up_of (nullable → articles.id)
   title, one_line_summary
   body JSONB               [D-03] 섹션 배열 (§3)
@@ -216,6 +217,20 @@ pipeline_runs          id, run_type, started_at, finished_at, status,
                        cost_fixed, cost_variable                 [D-07]
                        notes
 ```
+
+### 스키마에서 코드로 강제하는 것
+
+마이그레이션의 check 제약이 지키는 불변식. 애플리케이션 버그가 DB까지 오염시키지 않게 한다.
+
+| 제약 | 내용 |
+|---|---|
+| `articles_body_has_sections` | `body`에 `sections` 배열이 반드시 있다. **`coalesce` 필수** — `jsonb_typeof`가 NULL을 돌려주면 check 제약은 통과로 취급한다 |
+| `articles_published_has_timestamp` | `status='published'`면 `published_at`이 있다 |
+| `articles_no_self_follow_up` | 자기 자신을 follow-up 하지 않는다 |
+| `articles_run_topic_idx` (unique) | `(run_id, topic_hash)` 중복 생성 차단 |
+| 점수 축 | 각 축 1~5, `importance_score` 3~15 |
+| `article_sources` | `ordinal >= 1`, `tier in (1,2)`, `(article_id, ordinal)` 유니크 |
+| `seen_feed_items_processed_at_matches_status` | `processed`면 `processed_at`이 있고, `pending`이면 없다 |
 
 ### `seen_feed_items` 상태 전이 [D-01]
 
