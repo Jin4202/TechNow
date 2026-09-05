@@ -132,6 +132,27 @@ D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않
 - **페이월 매체는 제외한다.** RSS 자체는 주제 발굴용이라 본문이 필요 없지만, 근접 재채점(2.5)에서 트리거 페이지를 fetch하므로 막히면 그 토픽만 불리해진다
 - 피드가 죽어도 다른 피드가 같은 카테고리를 덮도록, 한 카테고리를 단일 피드에만 의존시키지 않는다
 
+### D-16 결과. 선정된 피드 5개 (1.5 완료)
+
+| name | URL | 커버 | 1회 수집량 |
+|---|---|---|---|
+| `phys-org` | phys.org/rss-feed/ | 우주·물리·기후·바이오·AI | 30 |
+| `science-daily` | sciencedaily.com/rss/all.xml | 바이오·기후·물리·우주 | 60 |
+| `ars-technica` | feeds.arstechnica.com/arstechnica/index | AI·산업정책·하드웨어·우주 | 20 |
+| `ieee-spectrum` | spectrum.ieee.org/feeds/feed.rss | 로봇·AI·에너지·산업정책 | 30 |
+| `nasa` | nasa.gov/news-release/feed/ | 우주 (1차 출처) | 10 |
+
+합계 약 150건/일. Phase 2 완료 조건의 "원시 항목 100건 규모"와 맞는다.
+7개 카테고리 전부 **2개 이상**의 피드가 커버한다 (`tests/feeds.test.ts`가 강제).
+
+**수집 시 주의**
+- **Phys.org 는 기본 User-Agent 를 거부한다** (HTTP 400). 식별 가능한 UA 필수.
+  `FEED_USER_AGENT` 상수를 쓴다
+- 후보였던 EurekAlert 의 RSS 경로는 404였다. 다시 넣으려면 경로를 새로 찾아야 한다
+- Nature(`nature.com/nature.rss`)는 **RSS 1.0(RDF)** 이라 `.//item` 으로 파싱되지 않는다.
+  지금 목록에는 RDF 피드가 없으므로 파서는 RSS 2.0 과 Atom 만 다루면 된다.
+  Nature 를 추가하려면 파서에 RDF 처리를 먼저 넣어야 한다
+
 ---
 
 ## 참고 — Next 16 변경점 (결정이 아니라 사실)
@@ -146,7 +167,6 @@ D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않
 
 | 항목 | 확인 태스크 |
 |---|---|
-| RSS 피드 최종 목록 | 1.5 |
 | Brave Search 무료 티어 월 쿼리 한도와 예상 사용량 | 3.2a |
 | prompt cache TTL과 파이프라인 체인 소요 시간의 관계 | 3.8a |
 | Flux schnell vs Imagen 4 Fast 비교 결과 | 5.1 |
