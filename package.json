@@ -25,7 +25,8 @@
     "research:live": "vitest run --config vitest.live.config.mts tests/live/research.live.ts",
     "fixtures:build": "vitest run --config vitest.live.config.mts tests/live/build-fixtures.live.ts",
     "write:live": "vitest run --config vitest.live.config.mts tests/live/write-article.live.ts",
-    "verify:live": "vitest run --config vitest.live.config.mts tests/live/verify-claims.live.ts"
+    "verify:live": "vitest run --config vitest.live.config.mts tests/live/verify-claims.live.ts",
+    "build:live": "vitest run --config vitest.live.config.mts tests/live/build-article.live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

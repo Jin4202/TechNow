@@ -60,6 +60,8 @@ TITLE AND SUMMARY
   Bad: "Scientists just did something remarkable with a fly"
   Bad: "Connectome completion in Drosophila melanogaster"
 - Put the number in the title when the number is the point.
+- Sentence case: capitalise the first word and proper nouns only. Not Title Case.
+- Under 14 words. A title with a comma splice is usually two ideas; keep the first.
 - The summary says why it matters. It is not the title again.
 
 SENTENCES — this is the rule most often broken, so check it

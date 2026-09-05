@@ -43,6 +43,13 @@ export interface ResearchResult {
   usage: TokenUsage;
   /** 왜 버렸는지. 로그와 캘리브레이션용 */
   rejections: { url: string; reason: string }[];
+  /**
+   * tier 필터를 통과한 Tier 1 후보 수 (fetch 성공 여부와 무관).
+   *
+   * 3.10 의 "해당 토픽에 Tier 1 이 존재한다면 최소 하나는 Tier 1" 규칙을
+   * 판정하려면 애초에 Tier 1 후보가 있었는지 알아야 한다
+   */
+  tier1CandidatesSeen: number;
 }
 
 export interface ResearchTopicInput {
@@ -116,6 +123,8 @@ export async function researchTopic(
   const { accepted, rejected } = filterSources([...new Set(urls)]);
   rejections.push(...rejected);
 
+  const tier1CandidatesSeen = accepted.filter((c) => c.tier === 1).length;
+
   if (accepted.length === 0) {
     return {
       sources: [],
@@ -125,6 +134,7 @@ export async function researchTopic(
       pagesFetched: 0,
       usage,
       rejections,
+      tier1CandidatesSeen: 0,
     };
   }
 
@@ -167,5 +177,6 @@ export async function researchTopic(
     pagesFetched,
     usage,
     rejections,
+    tier1CandidatesSeen,
   };
 }

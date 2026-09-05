@@ -39,6 +39,8 @@ body.sections[]    3~5개. 각각 heading + paragraphs + sources
 - 나쁨: `Scientists just did something remarkable with a fly` (내용이 없다)
 - 나쁨: `Connectome completion in Drosophila melanogaster` (전문용어로 시작)
 - 숫자가 핵심이면 제목에 넣는다: `New cathode keeps 80% capacity after 4,000 cycles`
+- **문장형 대소문자(sentence case).** 첫 글자와 고유명사만 대문자로 쓴다.
+  실측에서 다섯 편 중 한 편만 Title Case 로 나와 목록이 들쭉날쭉했다
 
 ### 한 줄 요약
 
