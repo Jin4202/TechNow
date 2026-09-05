@@ -58,8 +58,18 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+type XmlNode = Record<string, unknown>;
+
+/** 중첩된 노드를 타입 단언 없이 따라간다 */
+function child(node: unknown, key: string): unknown {
+  if (node && typeof node === 'object' && key in node) {
+    return (node as XmlNode)[key];
+  }
+  return undefined;
+}
+
 /** Atom 의 link 는 속성에 URL 이 있고 여러 개일 수 있다 */
-function atomLink(entry: Record<string, unknown>): string {
+function atomLink(entry: XmlNode): string {
   const links = asArray(entry.link as Record<string, unknown> | Record<string, unknown>[]);
   const alternate = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate') ?? links[0];
   if (!alternate) return '';
@@ -67,10 +77,10 @@ function atomLink(entry: Record<string, unknown>): string {
 }
 
 export function parseFeed(xml: string, feedName: string): FeedItem[] {
-  const doc = parser.parse(xml) as Record<string, any>;
+  const doc: unknown = parser.parse(xml);
 
-  const rssItems = asArray(doc?.rss?.channel?.item);
-  const atomEntries = asArray(doc?.feed?.entry);
+  const rssItems = asArray(child(child(child(doc, 'rss'), 'channel'), 'item') as XmlNode | XmlNode[] | undefined);
+  const atomEntries = asArray(child(child(doc, 'feed'), 'entry') as XmlNode | XmlNode[] | undefined);
 
   const raw = rssItems.length > 0 ? rssItems : atomEntries;
   const isAtom = rssItems.length === 0 && atomEntries.length > 0;
