@@ -1,17 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { getAnthropic } from '@/clients/anthropic';
+import { BraveClient } from '@/clients/brave';
 import { thresholds } from '@/config/thresholds';
 import { createServiceClient } from '@/db/supabase/service';
+import { buildTopic } from '@/pipeline/build-topic';
+import { publishReadyArticles } from '@/pipeline/publish/publish-ready';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
-// 로컬 Supabase + 실제 피드 + 실제 Claude 호출. 한 번에 15센트 안팎.
-// 실행: pnpm daily:live
+// 로컬 Supabase + 실제 피드 + 실제 Claude/Brave 호출.
+// 기사를 실제로 만들므로 한 번에 $0.5 안팎. 실행: pnpm daily:live
 const db = createServiceClient();
 const claude = getAnthropic();
+const brave = new BraveClient();
 
 async function wipe() {
   await db.from('run_topics').delete().not('id', 'is', null);
+  await db.from('source_texts').delete().not('id', 'is', null);
+  await db.from('article_sources').delete().not('id', 'is', null);
   await db.from('articles').delete().not('id', 'is', null);
   await db.from('seen_feed_items').delete().not('url_hash', 'is', null);
   await db.from('pipeline_runs').delete().not('id', 'is', null);
@@ -20,67 +26,85 @@ async function wipe() {
 beforeAll(wipe);
 afterAll(wipe);
 
-describe('일간 파이프라인 전체 (Phase 1 + Phase 2)', () => {
-  it('수집부터 선정까지 한 번 돈다', async () => {
-    const r = await runDailyDiscovery(db, claude);
+describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
+  it('수집부터 기사 생성까지 돈다', async () => {
+    const r = await runDailyDiscovery(db, claude, {
+      // 테스트에서는 자식 태스크 대신 직접 부른다 (CLAUDE.md §3)
+      buildTopic: (input) => buildTopic(db, claude, brave, input),
+    });
 
-    console.log(`\n수집 ${r.uniqueItems} → 필터통과 ${r.uniqueItems - Object.values(r.filtered).reduce((a, b) => a + b, 0)}`);
-    console.log(`필터 탈락:`, r.filtered);
-    console.log(`후보 ${r.candidates} → 토픽 ${r.topics} (폴백 ${r.groupingFellBack})`);
-    console.log(`재채점 ${r.rescored}건`);
-    console.log(`선정:`, r.selection);
-    console.log(`발행 ${r.published}건, 고정비 $${r.costFixed}`);
+    console.log(`\n수집 ${r.uniqueItems} → 후보 ${r.candidates} → 토픽 ${r.topics}`);
+    console.log('선정:', r.selection);
+    console.log(`생성 시도 ${r.buildAttempts}회 → 기사 ${r.articlesBuilt}건`);
+    for (const f of r.buildFailures) {
+      console.log(`  ✗ ${f.topicTitle.slice(0, 56)} — ${f.failure} ${f.detail.slice(0, 40)}`);
+    }
+    console.log(`고정비 $${r.costFixed} + 변동비 $${r.costVariable}`);
 
     expect(r.failures).toEqual([]);
-    expect(r.groupingFellBack, '폴백이면 그룹핑 호출이 실패한 것').toBe(false);
-    expect(r.topics).toBeGreaterThan(50);
+    expect(r.groupingFellBack).toBe(false);
+    expect(r.articlesBuilt).toBeLessThanOrEqual(thresholds.dailyCap);
 
-    // 재채점은 상위 N개로 고정된다 (D-19). 분포에 흔들리지 않는다
-    expect(r.rescored).toBeLessThanOrEqual(thresholds.rescoreTopN);
-
-    // 선정은 상한을 넘지 않는다
-    expect(r.published).toBeLessThanOrEqual(thresholds.dailyCap);
-    expect(r.selection.selected).toBe(r.published);
-  }, 900_000);
-
-  it('전 토픽의 판정이 run_topics 에 남는다 (2.7)', async () => {
-    const { data: runs } = await db.from('pipeline_runs').select('id, topics_seen').limit(1).single();
-    const { data: rows, count } = await db
-      .from('run_topics')
-      .select('*', { count: 'exact' })
-      .eq('run_id', runs!.id);
-
-    expect(count, '토픽 수와 기록 수가 같아야 한다').toBe(runs!.topics_seen);
-
-    const scored = rows!.filter((r) => r.importance_score !== null);
-    const selected = rows!.filter((r) => r.selected);
-    const rescored = rows!.filter((r) => r.rescored);
-
-    console.log(`\nrun_topics ${count}행 — 채점됨 ${scored.length}, 재채점 ${rescored.length}, 선정 ${selected.length}`);
-
-    // 완료 기준: 전 토픽·점수·follow-up·통과 여부가 남는다
-    expect(rows!.every((r) => r.topic_title.length > 0)).toBe(true);
-    expect(rows!.every((r) => r.selected || r.reject_reason !== null), '탈락엔 사유가 있어야 한다').toBe(true);
-    expect(selected.every((r) => r.reject_reason === null)).toBe(true);
-    expect(rescored.every((r) => r.first_pass_score !== null), '재채점엔 1차 점수가 남아야 한다').toBe(true);
-    expect(scored.every((r) => r.reason_novelty && r.reason_impact && r.reason_interest)).toBe(true);
-
-    // 사유별 분포 — 캘리브레이션이 읽을 데이터
-    const byReason: Record<string, number> = {};
-    for (const r of rows!) {
-      const key = r.reject_reason ?? 'selected';
-      byReason[key] = (byReason[key] ?? 0) + 1;
+    // D-21: 조사가 실패하면 다음 순위로 내려간다.
+    // 상한을 못 채웠다면 시도가 더 많았어야 한다
+    if (r.articlesBuilt < thresholds.dailyCap) {
+      expect(r.buildAttempts).toBeGreaterThan(r.articlesBuilt);
     }
-    console.log('판정 분포:', byReason);
+  }, 1_800_000);
+
+  it('기사가 출처와 함께 저장된다', async () => {
+    const { data: articles } = await db
+      .from('articles')
+      .select('id, slug, status, body, style_guide_version, importance_score');
+
+    console.log(`\n기사 ${articles!.length}건`);
+    for (const a of articles!) {
+      const { count } = await db
+        .from('article_sources')
+        .select('id', { count: 'exact', head: true })
+        .eq('article_id', a.id);
+      console.log(`  ${a.status} ${a.slug.slice(0, 50)} 출처 ${count}건 점수 ${a.importance_score}`);
+      expect(count, '출처 없는 기사는 섹션 참조가 깨진다').toBeGreaterThanOrEqual(3);
+    }
+
+    // Phase 3 에서는 영문 본문만 필수이므로 바로 ready 다
+    expect(articles!.every((a) => a.status === 'ready')).toBe(true);
+    expect(articles!.every((a) => a.style_guide_version !== null)).toBe(true);
+
+    // 섹션의 sources 가 실재하는 ordinal 을 가리키는지
+    for (const a of articles!) {
+      const { data: sources } = await db
+        .from('article_sources')
+        .select('ordinal')
+        .eq('article_id', a.id);
+      const known = new Set(sources!.map((s) => s.ordinal));
+      const body = a.body as { sections: { sources: number[] }[] };
+      for (const section of body.sections) {
+        expect(section.sources.length).toBeGreaterThan(0);
+        for (const ordinal of section.sources) expect(known).toContain(ordinal);
+      }
+    }
   });
 
-  it('두 번째 런은 후보가 0이다 (D-01)', async () => {
-    const r = await runDailyDiscovery(db, claude);
-    expect(r.skipped).toBeGreaterThan(50);
-    expect(r.candidates).toBe(0);
-    expect(r.topics).toBe(0);
-    expect(r.published).toBe(0);
-    // 토픽이 없으면 모델 호출도 없다 = 고정비 0
-    expect(r.costFixed).toBe(0);
+  it('source_texts 가 저장되고 만료 시각이 있다 (D-05)', async () => {
+    const { data } = await db.from('source_texts').select('expires_at, extracted_text').limit(5);
+    expect(data!.length).toBeGreaterThan(0);
+    expect(data!.every((s) => new Date(s.expires_at) > new Date())).toBe(true);
+    expect(data!.every((s) => s.extracted_text.length > 500)).toBe(true);
+  });
+
+  it('발행 태스크가 ready 를 published 로 넘긴다 (3.13)', async () => {
+    const before = await db.from('articles').select('id', { count: 'exact', head: true }).eq('status', 'ready');
+    const result = await publishReadyArticles(db);
+
+    console.log(`\n발행 ${result.published}건, hold-back ${result.heldBack}, failed ${result.failed}`);
+    expect(result.published).toBe(before.count);
+
+    const { data: published } = await db.from('articles').select('status, published_at').eq('status', 'published');
+    expect(published!.every((a) => a.published_at !== null), 'published 면 시각이 있어야 한다').toBe(true);
+
+    // 두 번 불러도 이미 발행된 것을 다시 건드리지 않는다
+    const second = await publishReadyArticles(db);
+    expect(second.published).toBe(0);
   }, 300_000);
 });

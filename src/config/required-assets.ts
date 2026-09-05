@@ -23,3 +23,13 @@ export const ALL_ASSETS: readonly Asset[] = [
  * Phase 5: + cover_image         (로드맵 5.4)
  */
 export const requiredAssets: readonly Asset[] = ['english_body'] as const;
+
+/**
+ * 기사에 기록되는 스타일 가이드 버전 (`articles.style_guide_version`).
+ *
+ * 발행된 기사는 수정하지 않으므로(기획서 §9), 가이드를 고쳐도 기존 기사는 그대로 둔다.
+ * 어떤 기사가 어떤 기준으로 쓰였는지는 이 값으로 안다.
+ *
+ * docs/STYLE_GUIDE.md §7 의 버전 표와 일치해야 한다.
+ */
+export const STYLE_GUIDE_VERSION = '2026-09-05b';

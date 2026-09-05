@@ -1,36 +1,13 @@
+import { STYLE_GUIDE_VERSION } from '@/config/required-assets';
+
+import type { Category } from '@/config/categories';
 import type { ServiceClient } from '@/db/supabase/service';
-import type { PlaceholderArticle } from '@/pipeline/discover/make-placeholder';
 
 /**
  * articles 저장소.
  *
  * 앱은 이 테이블에 쓰지 않는다. 쓰기는 service_role 을 쓰는 파이프라인 전용이다 (D-02).
  */
-
-/**
- * placeholder 기사를 넣는다 (로드맵 1.9, 3.15에서 제거).
- *
- * (run_id, topic_hash) 유니크 인덱스가 재시도 시 중복 생성을 막는다.
- * slug 충돌도 같은 이유로 무시한다 — 같은 기사가 두 번 온 것이다.
- */
-export async function insertPlaceholders(
-  db: ServiceClient,
-  articles: readonly PlaceholderArticle[],
-  runId: string,
-): Promise<number> {
-  if (articles.length === 0) return 0;
-
-  const { data, error } = await db
-    .from('articles')
-    .upsert(
-      articles.map((a) => ({ ...a, run_id: runId })),
-      { onConflict: 'slug', ignoreDuplicates: true },
-    )
-    .select('id');
-
-  if (error) throw new Error(`placeholder 기사 삽입 실패: ${error.message}`);
-  return data?.length ?? 0;
-}
 
 /**
  * 최근 발행 기사 제목 (로드맵 2.3).
@@ -53,4 +30,93 @@ export async function recentPublishedArticles(
 
   if (error) throw new Error(`최근 발행 기사 조회 실패: ${error.message}`);
   return data ?? [];
+}
+
+/**
+ * 조사·작성·검증을 통과한 기사를 저장한다 (로드맵 3.12, 3.15).
+ *
+ * 기사와 출처를 함께 넣는다. 출처 없이 기사만 들어가면 섹션의 `sources` 가
+ * 존재하지 않는 ordinal 을 가리키게 되어 상세 페이지가 깨진다.
+ *
+ * 상태는 필수 자산 설정이 정한다 (`required-assets.ts`).
+ * Phase 3 에서는 영문 본문만 필수라 바로 `ready` 가 되고,
+ * Phase 4~5 에서 번역·이미지가 필수가 되면 `ready_pending` 으로 들어온다.
+ */
+export interface ArticleToInsert {
+  slug: string;
+  category: Category;
+  tags: string[];
+  title: string;
+  oneLineSummary: string;
+  body: { sections: { heading: string; paragraphs: string[]; sources: number[] }[] };
+  runId: string;
+  topicHash: string;
+  followUpOf: string | null;
+  scoreNovelty: number;
+  scoreImpact: number;
+  scoreInterest: number;
+  importanceScore: number;
+  status: 'ready' | 'ready_pending';
+  sources: {
+    ordinal: number;
+    url: string;
+    title: string | null;
+    publisher: string | null;
+    tier: 1 | 2;
+  }[];
+}
+
+export async function insertArticleWithSources(
+  db: ServiceClient,
+  article: ArticleToInsert,
+): Promise<string | null> {
+  const { data, error } = await db
+    .from('articles')
+    .insert({
+      slug: article.slug,
+      category: article.category,
+      tags: article.tags,
+      title: article.title,
+      one_line_summary: article.oneLineSummary,
+      body: article.body,
+      run_id: article.runId,
+      topic_hash: article.topicHash,
+      follow_up_of: article.followUpOf,
+      score_novelty: article.scoreNovelty,
+      score_impact: article.scoreImpact,
+      score_interest: article.scoreInterest,
+      importance_score: article.importanceScore,
+      status: article.status,
+      style_guide_version: STYLE_GUIDE_VERSION,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    // (run_id, topic_hash) 유니크 인덱스에 걸린 것은 재시도로 인한 중복이다.
+    // 실패가 아니라 이미 만들어졌다는 뜻이므로 조용히 넘어간다
+    if (error.code === '23505') return null;
+    throw new Error(`기사 저장 실패: ${error.message}`);
+  }
+
+  const articleId = data.id;
+
+  const { error: sourceError } = await db.from('article_sources').insert(
+    article.sources.map((s) => ({
+      article_id: articleId,
+      ordinal: s.ordinal,
+      url: s.url,
+      title: s.title,
+      publisher: s.publisher,
+      tier: s.tier,
+    })),
+  );
+
+  if (sourceError) {
+    // 출처 없는 기사는 섹션 참조가 깨진다. 기사도 같이 되돌린다
+    await db.from('articles').delete().eq('id', articleId);
+    throw new Error(`출처 저장 실패, 기사도 되돌림: ${sourceError.message}`);
+  }
+
+  return articleId;
 }

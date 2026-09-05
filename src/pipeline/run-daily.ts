@@ -1,13 +1,14 @@
-import { addUsage, estimateCost, type TokenUsage } from '@/clients/anthropic';
+import { addUsage, estimateCost, ZERO_USAGE, type TokenUsage } from '@/clients/anthropic';
 import { feeds } from '@/config/feeds';
 import {
   CACHE_READ_MULTIPLIER,
   CACHE_WRITE_MULTIPLIER,
-  models,
+  MODEL_HAIKU,
+  MODEL_SONNET,
   PRICING,
 } from '@/config/models';
 import { thresholds } from '@/config/thresholds';
-import { insertPlaceholders, recentPublishedArticles } from '@/db/articles';
+import { recentPublishedArticles } from '@/db/articles';
 import { finishRun, startRun } from '@/db/pipeline-runs';
 import { insertRunTopics, type RunTopicRow } from '@/db/run-topics';
 import {
@@ -16,11 +17,12 @@ import {
   insertPending,
   markProcessed,
 } from '@/db/seen-feed-items';
+import { cleanupSourceTexts } from '@/db/source-texts';
 import { applyCheapFilters, summarizeRejections } from '@/pipeline/discover/cheap-filters';
 import { dedupeItems, fetchFeeds } from '@/pipeline/discover/fetch-feeds';
-import { makePlaceholder } from '@/pipeline/discover/make-placeholder';
 import { partitionCandidates } from '@/pipeline/discover/partition-candidates';
 import { groupTopics, type Topic } from '@/pipeline/group/group-topics';
+import { topicHash } from '@/pipeline/group/topic-hash';
 import { rescoreTopics, selectForRescore } from '@/pipeline/score/rescore';
 import { scoreTopics, type ScoredTopic } from '@/pipeline/score/score-topics';
 import { selectTopics, summarizeSelection } from '@/pipeline/score/select-topics';
@@ -28,20 +30,25 @@ import { createFetchContext } from '@/pipeline/research/fetch-page';
 
 import type { AnthropicClient } from '@/clients/anthropic';
 import type { ServiceClient } from '@/db/supabase/service';
+import type { BuildTopicInput, BuildTopicResult } from '@/pipeline/build-topic';
 import type { FeedFailure } from '@/pipeline/discover/fetch-feeds';
 
 /**
- * 일간 파이프라인 — Phase 2 버전 (로드맵 1.6~1.11, 2.1~2.7).
+ * 일간 파이프라인 (로드맵 1.6~1.11, 2.1~2.7, 3.12).
  *
- * Trigger.dev 에 의존하지 않는다. 태스크는 이 함수를 부르기만 한다 (CLAUDE.md §3).
+ * Trigger.dev 에 의존하지 않는다 (CLAUDE.md §3). 기사 생성은 주입받은 함수가 한다 —
+ * 프로덕션에서는 자식 태스크를 부르고, 테스트에서는 직접 부른다.
  *
  * 흐름:
  *   수집 → 저비용 필터 → 후보 선별 → pending 기록
  *        → 그룹핑 → 1차 채점 → 근접 재채점 → 선정
- *        → placeholder 기사 → run_topics 기록 → processed 갱신 → 정리
+ *        → **순위대로 기사 생성 (실패하면 다음 순위)** → run_topics → processed → 정리
  *
- * placeholder 는 3.15 에서 실제 조사·작성 파이프라인으로 교체한다.
+ * 발행은 별도 스케줄이 한다 (D-04). 여기서는 기사를 `ready` 까지만 만든다.
  */
+
+/** 기사 생성기. 프로덕션은 자식 태스크, 테스트는 직접 호출 */
+export type TopicBuilder = (input: BuildTopicInput) => Promise<BuildTopicResult>;
 
 export interface DailyRunResult {
   runId: string;
@@ -55,18 +62,23 @@ export interface DailyRunResult {
   groupingFellBack: boolean;
   rescored: number;
   selection: ReturnType<typeof summarizeSelection>;
-  published: number;
+  /** 실제로 만들어진 기사 수 */
+  articlesBuilt: number;
+  /** 생성을 시도한 토픽 수. 실패해서 다음 순위로 내려간 횟수를 알 수 있다 */
+  buildAttempts: number;
+  buildFailures: { topicTitle: string; failure: string; detail: string }[];
   costFixed: number;
+  costVariable: number;
   failures: FeedFailure[];
-  cleaned: { pendingDeleted: number; processedDeleted: number };
+  cleaned: { pendingDeleted: number; processedDeleted: number; sourceTextsDeleted: number };
 }
 
 export interface DailyRunOptions {
+  buildTopic: TopicBuilder;
   onWarn?: (message: string, data: Record<string, unknown>) => void;
   onInfo?: (message: string, data: Record<string, unknown>) => void;
 }
 
-/** 토픽을 촉발한 항목의 URL. 재채점이 이 페이지를 가져온다 */
 function triggerUrl(topic: Topic): string {
   return topic.items[0]?.url ?? '';
 }
@@ -74,7 +86,7 @@ function triggerUrl(topic: Topic): string {
 export async function runDailyDiscovery(
   db: ServiceClient,
   claude: AnthropicClient,
-  options: DailyRunOptions = {},
+  options: DailyRunOptions,
 ): Promise<DailyRunResult> {
   const runId = await startRun(db, 'daily');
   const warn = options.onWarn ?? (() => {});
@@ -106,13 +118,11 @@ export async function runDailyDiscovery(
     // ── 그룹핑 + follow-up (2.2, 2.3) ───────────────────────
     const recent = await recentPublishedArticles(db, thresholds.followUpWindowDays);
     const grouping = await groupTopics(claude, candidates, recent);
-    if (grouping.usedFallback) {
-      warn('그룹핑 폴백', { reason: grouping.fallbackReason ?? '' });
-    }
+    if (grouping.usedFallback) warn('그룹핑 폴백', { reason: grouping.fallbackReason ?? '' });
     const topics = grouping.topics;
+    const recentById = new Map(recent.map((r) => [r.id, r.title]));
 
     // ── 1차 채점 (2.4) ──────────────────────────────────────
-    const recentById = new Map(recent.map((r) => [r.id, r.title]));
     const scoring = await scoreTopics(
       claude,
       topics.map((t) => ({
@@ -126,11 +136,10 @@ export async function runDailyDiscovery(
     for (const error of scoring.failedChunks) warn('채점 청크 실패', { error });
 
     // ── 근접 재채점 (2.5, D-19) ─────────────────────────────
-    const forRescore = selectForRescore(scoring.scored);
     const rescore = await rescoreTopics(
       claude,
       createFetchContext(),
-      forRescore.map((score) => ({
+      selectForRescore(scoring.scored).map((score) => ({
         score,
         title: topics[score.index]!.title,
         triggerUrl: triggerUrl(topics[score.index]!),
@@ -140,7 +149,6 @@ export async function runDailyDiscovery(
       })),
     );
 
-    // 재채점 결과를 1차 점수 위에 덮는다
     const finalScores = new Map<number, ScoredTopic>(scoring.scored.map((s) => [s.index, s]));
     const firstPassTotals = new Map<number, number>();
     const rescoreSkips = new Map<number, string>();
@@ -155,22 +163,76 @@ export async function runDailyDiscovery(
 
     // ── 선정 (2.6) ──────────────────────────────────────────
     const scoredList = [...finalScores.values()].sort((a, b) => a.index - b.index);
-    const { selected, entries } = selectTopics(scoredList);
+    const { entries } = selectTopics(scoredList);
     const selection = summarizeSelection(entries);
 
-    // ── placeholder 기사 (1.9, 3.15 에서 제거) ──────────────
-    const selectedTopics = selected.map((s) => topics[s.index]!);
-    const published = await insertPlaceholders(
-      db,
-      selectedTopics.map((t) => makePlaceholder(t.items[0]!)),
-      runId,
-    );
+    /**
+     * 임계를 통과한 토픽을 순위대로 (D-21).
+     *
+     * 상한만큼 자르지 않는다 — 조사는 정상적으로 실패할 수 있고, 상위 3개가 모두
+     * 실패하면 4등이 멀쩡한데도 그날 기사가 0건이 된다.
+     */
+    const ranked = entries
+      .filter((e) => e.rank !== null)
+      .sort((a, b) => a.rank! - b.rank!);
+
+    // ── 기사 생성 (3.12, 3.15) ──────────────────────────────
+    const articleIdByIndex = new Map<number, string>();
+    const buildFailures: { topicTitle: string; failure: string; detail: string }[] = [];
+    let variableUsage: TokenUsage = ZERO_USAGE;
+    let buildAttempts = 0;
+    let searchCalls = 0;
+    let pagesFetched = rescore.pagesFetched;
+
+    for (const entry of ranked) {
+      if (articleIdByIndex.size >= thresholds.dailyCap) break;
+
+      const index = entry.score.index;
+      const topic = topics[index]!;
+      buildAttempts += 1;
+
+      const result = await options.buildTopic({
+        runId,
+        topicHash: topicHash(topic.items),
+        topicTitle: topic.title,
+        items: topic.items.map((i) => ({ title: i.title, description: i.description })),
+        followUpOf: topic.followUpOfArticleId,
+        scores: {
+          novelty: entry.score.novelty.score,
+          impact: entry.score.impact.score,
+          interest: entry.score.interest.score,
+          total: entry.score.total,
+        },
+      });
+
+      variableUsage = addUsage(variableUsage, result.usage);
+      searchCalls += result.searchCalls;
+      pagesFetched += result.pagesFetched;
+
+      if (result.articleId) {
+        articleIdByIndex.set(index, result.articleId);
+      } else {
+        buildFailures.push({
+          topicTitle: topic.title,
+          failure: result.failure ?? 'unknown',
+          detail: result.detail ?? '',
+        });
+        warn('기사 생성 실패, 다음 순위로', {
+          topicTitle: topic.title,
+          failure: result.failure ?? 'unknown',
+          detail: result.detail ?? '',
+        });
+      }
+    }
 
     // ── 판정 기록 (2.7) ─────────────────────────────────────
     const entryByIndex = new Map(entries.map((e) => [e.score.index, e]));
     const rows: RunTopicRow[] = topics.map((topic, index) => {
       const score = finalScores.get(index) ?? null;
       const entry = entryByIndex.get(index) ?? null;
+      const articleId = articleIdByIndex.get(index) ?? null;
+      const buildFailure = buildFailures.find((f) => f.topicTitle === topic.title);
+
       return {
         topic_title: topic.title.slice(0, 500),
         item_count: topic.items.length,
@@ -187,45 +249,47 @@ export async function runDailyDiscovery(
         rescored: firstPassTotals.has(index),
         first_pass_score: firstPassTotals.get(index) ?? null,
         rescore_skip_reason: rescoreSkips.get(index) ?? null,
-        selected: entry?.selected ?? false,
-        // 채점을 못 받은 토픽도 사유를 남긴다. 조용히 비어 있으면 원인을 못 찾는다
-        reject_reason: entry ? entry.reason : 'unscored',
+        selected: articleId !== null,
+        reject_reason: articleId
+          ? null
+          : buildFailure
+            ? `build:${buildFailure.failure}`
+            : entry
+              ? entry.reason
+              : 'unscored',
         rank: entry?.rank ?? null,
-        article_id: null,
+        article_id: articleId,
       };
     });
     await insertRunTopics(db, runId, rows);
 
     // ── 마무리 ──────────────────────────────────────────────
-    // 선정 단계가 정상 종료된 뒤에만 processed 로 넘긴다 (D-01).
-    // 탈락한 후보도 processed 다
     await markProcessed(db, candidates.map((i) => i.urlHash));
-    const cleaned = await cleanupSeenItems(db);
+    const seenCleaned = await cleanupSeenItems(db);
+    const sourceTextsDeleted = await cleanupSourceTexts(db);
 
     // 고정비: 발굴~선정. 기사가 0건인 날에도 발생한다 (D-07)
-    const haikuUsage: TokenUsage = addUsage(
-      addUsage(grouping.usage, scoring.usage),
-      rescore.usage,
-    );
-    const costFixed = estimateCost(haikuUsage, PRICING[models.score], {
-      cacheRead: CACHE_READ_MULTIPLIER,
-      cacheWrite: CACHE_WRITE_MULTIPLIER,
-    });
+    const fixedUsage = addUsage(addUsage(grouping.usage, scoring.usage), rescore.usage);
+    const multipliers = { cacheRead: CACHE_READ_MULTIPLIER, cacheWrite: CACHE_WRITE_MULTIPLIER };
+    const costFixed = estimateCost(fixedUsage, PRICING[MODEL_HAIKU], multipliers);
+    // 변동비: 조사~작성. 대부분 Sonnet 이므로 그 단가로 추정한다
+    const costVariable = estimateCost(variableUsage, PRICING[MODEL_SONNET], multipliers);
 
     await finishRun(db, runId, 'success', {
       topics_seen: topics.length,
-      topics_selected: selected.length,
-      articles_published: published,
-      cost_pages_fetched: rescore.pagesFetched,
-      cost_input_tokens: haikuUsage.inputTokens,
-      cost_output_tokens: haikuUsage.outputTokens,
-      cost_cached_tokens: haikuUsage.cacheReadTokens,
+      topics_selected: articleIdByIndex.size,
+      articles_published: 0, // 발행은 별도 스케줄이 한다 (D-04)
+      cost_search_calls: searchCalls,
+      cost_pages_fetched: pagesFetched,
+      cost_input_tokens: fixedUsage.inputTokens + variableUsage.inputTokens,
+      cost_output_tokens: fixedUsage.outputTokens + variableUsage.outputTokens,
+      cost_cached_tokens: fixedUsage.cacheReadTokens + variableUsage.cacheReadTokens,
       cost_fixed: Number(costFixed.toFixed(4)),
-      cost_variable: 0,
+      cost_variable: Number(costVariable.toFixed(4)),
       notes:
         `수집 ${unique.length} → 필터통과 ${kept.length} → 후보 ${candidates.length} → ` +
-        `토픽 ${topics.length} → 통과 ${selection.passedThreshold} → 선정 ${selected.length}. ` +
-        `피드실패 ${failures.length}, 재채점 ${rescore.pagesFetched}`,
+        `토픽 ${topics.length} → 임계통과 ${selection.passedThreshold} → ` +
+        `시도 ${buildAttempts} → 생성 ${articleIdByIndex.size}. 피드실패 ${failures.length}`,
     });
 
     return {
@@ -240,10 +304,13 @@ export async function runDailyDiscovery(
       groupingFellBack: grouping.usedFallback,
       rescored: rescore.outcomes.filter((o) => o.rescored).length,
       selection,
-      published,
+      articlesBuilt: articleIdByIndex.size,
+      buildAttempts,
+      buildFailures,
       costFixed: Number(costFixed.toFixed(4)),
+      costVariable: Number(costVariable.toFixed(4)),
       failures,
-      cleaned,
+      cleaned: { ...seenCleaned, sourceTextsDeleted },
     };
   } catch (error) {
     // 실패해도 런 기록은 남긴다. pending 항목은 그대로여서 다음 날 재처리된다
