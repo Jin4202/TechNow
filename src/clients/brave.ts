@@ -38,7 +38,13 @@ export interface SearchResult {
 export interface BraveClientOptions {
   apiKey?: string;
   fetchImpl?: typeof fetch;
-  /** 무료 티어는 초당 1회 제한이 있다 */
+  /**
+   * 호출 간 최소 간격.
+   *
+   * 실측 헤더는 `x-ratelimit-policy: 50;w=1` — 초당 50회다 (3.2a).
+   * 그럼에도 1.1초를 기본값으로 둔다: 우리 사용량은 하루 9회라 속도가
+   * 문제되지 않고, 한도를 건드려 차단당하는 쪽이 훨씬 비싸다
+   */
   minIntervalMs?: number;
 }
 
@@ -65,7 +71,7 @@ export class BraveClient {
     this.minIntervalMs = options.minIntervalMs ?? DEFAULT_MIN_INTERVAL_MS;
   }
 
-  /** 무료 티어의 초당 1회 제한을 지킨다 */
+  /** 레이트 리밋에 여유를 두고 호출한다 */
   private async throttle(): Promise<void> {
     const wait = this.minIntervalMs - (Date.now() - this.lastCallAt);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
