@@ -126,3 +126,15 @@ describe('locales (D-08)', () => {
     }
   });
 });
+
+describe('필수 자산 (4.6)', () => {
+  it('Phase 4 부터 한국어 번역이 필수다', () => {
+    // 이 한 줄이 initialStatus() 를 ready_pending 으로 바꾼다.
+    // 번역이 없는 기사는 그날 아침 발행에서 빠진다 (기획서 §2.3)
+    expect(requiredAssets).toContain('korean_translation');
+  });
+
+  it('커버 이미지는 아직 필수가 아니다 (Phase 5)', () => {
+    expect(requiredAssets).not.toContain('cover_image');
+  });
+});

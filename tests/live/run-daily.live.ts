@@ -6,6 +6,7 @@ import { thresholds } from '@/config/thresholds';
 import { recentRunCosts } from '@/db/pipeline-runs';
 import { createServiceClient } from '@/db/supabase/service';
 import { buildTopic } from '@/pipeline/build-topic';
+import { sweepPendingAssets } from '@/pipeline/fill-assets';
 import { publishReadyArticles } from '@/pipeline/publish/publish-ready';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
@@ -82,7 +83,7 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
       expect(count, '출처 없는 기사는 섹션 참조가 깨진다').toBeGreaterThanOrEqual(3);
     }
 
-    // Phase 3 에서는 영문 본문만 필수이므로 바로 ready 다
+    // Phase 4 부터는 한국어 번역까지 있어야 ready 로 올라간다 (4.6)
     expect(articles!.every((a) => a.status === 'ready')).toBe(true);
     expect(articles!.every((a) => a.style_guide_version !== null)).toBe(true);
 
@@ -100,6 +101,68 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
       }
     }
   });
+
+  it('기사마다 한국어 번역이 생기고 구조가 원문과 같다 (4.4, 4.6)', async () => {
+    const { data: articles } = await db.from('articles').select('id, slug, body');
+
+    for (const article of articles!) {
+      const { data: translation } = await db
+        .from('article_translations')
+        .select('locale, title, one_line_summary, body')
+        .eq('article_id', article.id)
+        .eq('locale', 'ko')
+        .maybeSingle();
+
+      expect(translation, `${article.slug} 에 한국어판이 없다`).not.toBeNull();
+
+      const original = article.body as { sections: { sources: number[]; paragraphs: string[] }[] };
+      const korean = translation!.body as {
+        sections: { sources: number[]; paragraphs: string[] }[];
+      };
+
+      // D-03 의 제약. 구조가 어긋나면 섹션별 출처 표기가 틀린 문단을 가리킨다
+      expect(korean.sections).toHaveLength(original.sections.length);
+      for (const [i, section] of original.sections.entries()) {
+        expect(korean.sections[i]!.sources).toEqual(section.sources);
+        expect(korean.sections[i]!.paragraphs).toHaveLength(section.paragraphs.length);
+      }
+
+      console.log(`  ko ${translation!.title.slice(0, 46)}`);
+    }
+  });
+
+  it('번역이 없으면 발행되지 않고, 다음 런의 스윕이 되살린다 (4.6)', async () => {
+    // 어제 번역에 실패한 기사를 흉내낸다
+    const { data: articles } = await db.from('articles').select('id').limit(1);
+    const articleId = articles![0]!.id;
+
+    await db.from('article_translations').delete().eq('article_id', articleId);
+    await db.from('articles').update({ status: 'ready_pending' }).eq('id', articleId);
+
+    // 그날 아침 발행에서 빠진다
+    const held = await publishReadyArticles(db);
+    expect(held.heldBack, '자산이 빠진 기사는 발행되지 않는다').toBeGreaterThan(0);
+
+    const { data: afterPublish } = await db
+      .from('articles')
+      .select('status, held_back_count')
+      .eq('id', articleId)
+      .single();
+    expect(afterPublish!.status).toBe('ready_pending');
+    expect(afterPublish!.held_back_count).toBe(1);
+
+    // 다음 런의 스윕이 번역을 다시 만들어 발행 대기로 올린다
+    const sweep = await sweepPendingAssets(db, claude);
+    console.log(`\n스윕: 훑음 ${sweep.scanned}, 승격 ${sweep.promoted}`);
+    expect(sweep.promoted).toBeGreaterThan(0);
+
+    const { data: recovered } = await db
+      .from('articles')
+      .select('status')
+      .eq('id', articleId)
+      .single();
+    expect(recovered!.status).toBe('ready');
+  }, 600_000);
 
   it('source_texts 가 저장되고 만료 시각이 있다 (D-05)', async () => {
     const { data } = await db.from('source_texts').select('expires_at, extracted_text').limit(5);

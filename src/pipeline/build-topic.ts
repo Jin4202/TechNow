@@ -1,7 +1,8 @@
-import { ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
+import { addUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { requiredAssets } from '@/config/required-assets';
 import { insertArticleWithSources } from '@/db/articles';
 import { insertSourceTexts } from '@/db/source-texts';
+import { fillAssets } from '@/pipeline/fill-assets';
 import { createFetchContext } from '@/pipeline/research/fetch-page';
 import { researchTopic } from '@/pipeline/research/research-topic';
 import { buildArticle, type BuildFailure } from '@/pipeline/write/build-article';
@@ -53,6 +54,11 @@ export interface BuildTopicResult {
    */
   usageHaiku: TokenUsage;
   usageSonnet: TokenUsage;
+
+  /** 만든 필수 자산 (4.4). 번역이 여기 들어온다 */
+  assetsFilled?: string[];
+  /** 자산을 못 채워 발행 대기로 남았는가 */
+  awaitingAssets?: boolean;
 }
 
 /**
@@ -164,6 +170,22 @@ export async function buildTopic(
     })),
   });
 
+  // ── 필수 자산 (4.4) ─────────────────────────────────────
+  //
+  // 기사 본문 말고 더 필요한 것이 있으면 여기서 만든다. Phase 4 에서는 한국어 번역이다.
+  // 실패해도 기사 생성 자체는 성공이다 — `ready_pending` 으로 남고 다음 런의
+  // 스윕이 다시 시도한다 (기획서 §2.3). 여기서 실패로 뒤집으면 조사·작성 비용을
+  // 버리고 처음부터 다시 하게 된다
+  const assets = articleId
+    ? await fillAssets(db, claude, {
+        id: articleId,
+        title: built.article.title,
+        oneLineSummary: built.article.oneLineSummary,
+        sections: built.article.sections,
+        locales: [],
+      })
+    : null;
+
   return {
     articleId,
     failure: null,
@@ -172,6 +194,9 @@ export async function buildTopic(
     pagesFetched: research.pagesFetched,
     sourceCount: sources.length,
     usageHaiku,
-    usageSonnet,
+    // 번역도 Sonnet 이다 (CLAUDE.md §2.7)
+    usageSonnet: assets ? addUsage(usageSonnet, assets.usage) : usageSonnet,
+    assetsFilled: assets?.filled ?? [],
+    awaitingAssets: assets ? !assets.ready : false,
   };
 }

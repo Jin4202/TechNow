@@ -99,9 +99,11 @@ Trigger.dev 무료 티어 스케줄 한도는 10개다. 여유가 있으므로 *
 | `select-topics` | 자식 | 1 | 그룹핑 실패 시 항목별 개별 토픽으로 폴백 |
 | `build-article` | 자식 (토픽당) | 1 | 해당 토픽만 skip, 나머지는 진행 |
 | `verify-grounding` | build 내부 | 1 (실패 사유 첨부) | 2회 실패 → 토픽 skip |
-| `translate` / `illustrate` | build 내부 | 1 | 실패 → `ready_pending` 유지, 다음 런에서 재시도 |
+| `translate` / `illustrate` | build 내부 | 1 | 실패 → `ready_pending` 유지, 다음 런의 스윕이 재시도 (D-33) |
 | `cleanup-source-texts` | 자식 | 2 | 로그만. 다음 런에서 다시 정리됨 |
 | `publish-batch` | 스케줄 | 2 | 알림 |
+
+**"다음 런에서 재시도" 는 스윕이 한다** (`src/pipeline/fill-assets.ts`). 일간 런은 어제의 토픽을 다시 보지 않으므로(`seen_feed_items` 가 `processed`), 기사 쪽에서 `ready_pending` 을 훑어야 한다. 스윕은 기사 생성 **앞**에서 돈다 — 어제 것이 오늘 아침 발행에 맞춰져야 한다.
 
 **토픽 단위 병렬 처리**가 핵심이다. 한 기사의 이미지 생성 실패가 다른 기사의 발행을 막아서는 안 된다.
 

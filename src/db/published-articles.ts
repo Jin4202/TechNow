@@ -1,12 +1,21 @@
+import { DEFAULT_LOCALE } from '@/config/locales';
+
 import type { Category } from '@/config/categories';
+import type { Locale } from '@/config/locales';
 import type { Database } from '@/db/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * 발행된 기사 조회 (앱용).
+ * 발행된 기사 조회 (앱용, 로드맵 4.5).
  *
  * anon 키 + RLS 로 동작한다. `status = 'published'` 필터는 RLS 정책이 이미
  * 걸고 있지만(D-02), 쿼리에도 명시해 의도를 드러내고 인덱스를 타게 한다.
+ *
+ * **번역이 없는 기사는 그 언어에서 보이지 않는다.** 영어는 원본이라 늘 있고,
+ * 한국어는 `article_translations` 에 행이 있을 때만 나온다 — 없는 기사를 영어로
+ * 대신 보여주면 언어를 바꿔도 안 바뀌는 반쪽 상태가 된다 (CLAUDE.md §5).
+ * 4.6 이후 새 기사는 번역 없이는 발행되지 않으므로, 이 조건에 걸리는 것은
+ * Phase 4 이전에 발행된 기사뿐이다.
  */
 
 export interface ArticleListItem {
@@ -21,17 +30,43 @@ export interface ArticleListItem {
 
 export async function listPublishedArticles(
   db: SupabaseClient<Database>,
+  locale: Locale = DEFAULT_LOCALE,
   limit = 30,
 ): Promise<ArticleListItem[]> {
+  if (locale === DEFAULT_LOCALE) {
+    const { data, error } = await db
+      .from('articles')
+      .select('id, slug, category, title, one_line_summary, cover_image_url, published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw new Error(`기사 목록 조회 실패: ${error.message}`);
+    return data ?? [];
+  }
+
+  // `!inner` 라서 번역이 없는 기사는 결과에서 빠진다
   const { data, error } = await db
     .from('articles')
-    .select('id, slug, category, title, one_line_summary, cover_image_url, published_at')
+    .select(
+      'id, slug, category, cover_image_url, published_at, article_translations!inner(title, one_line_summary, locale)',
+    )
     .eq('status', 'published')
+    .eq('article_translations.locale', locale)
     .order('published_at', { ascending: false })
     .limit(limit);
 
   if (error) throw new Error(`기사 목록 조회 실패: ${error.message}`);
-  return data ?? [];
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    category: row.category,
+    title: row.article_translations[0]!.title,
+    one_line_summary: row.article_translations[0]!.one_line_summary,
+    cover_image_url: row.cover_image_url,
+    published_at: row.published_at,
+  }));
 }
 
 export interface ArticleSource {
@@ -68,6 +103,7 @@ export interface ArticleDetail extends ArticleListItem {
 export async function getPublishedArticle(
   db: SupabaseClient<Database>,
   slug: string,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<ArticleDetail | null> {
   const { data, error } = await db
     .from('articles')
@@ -80,6 +116,10 @@ export async function getPublishedArticle(
 
   if (error) throw new Error(`기사 조회 실패: ${error.message}`);
   if (!data) return null;
+
+  // 번역이 없으면 그 언어에는 이 기사가 없다. 영어로 대신 보여주지 않는다
+  const translation = locale === DEFAULT_LOCALE ? null : await getTranslation(db, data.id, locale);
+  if (locale !== DEFAULT_LOCALE && !translation) return null;
 
   const [sourcesResult, followUpOfResult, followedByResult] = await Promise.all([
     db
@@ -109,17 +149,56 @@ export async function getPublishedArticle(
     id: data.id,
     slug: data.slug,
     category: data.category,
-    title: data.title,
-    one_line_summary: data.one_line_summary,
+    title: translation?.title ?? data.title,
+    one_line_summary: translation?.one_line_summary ?? data.one_line_summary,
     cover_image_url: data.cover_image_url,
     published_at: data.published_at,
-    body: data.body as unknown as { sections: ArticleSection[] },
+    // 본문도 번역본으로 바꾼다. 구조는 원문과 같음이 보장돼 있다 (4.3a, D-03)
+    body: (translation?.body ?? data.body) as unknown as { sections: ArticleSection[] },
     tags: data.tags,
     style_guide_version: data.style_guide_version,
     sources: sourcesResult.data ?? [],
     followUpOf: followUpOfResult.data ?? null,
     followedBy: followedByResult.data ?? [],
   };
+}
+
+/**
+ * 기사 하나의 번역본.
+ *
+ * follow-up 링크의 제목은 번역하지 않는다 — 목록에 두 줄 나오는 링크 제목까지
+ * 언어별로 조인하면 쿼리가 세 배가 된다. 4.5 의 완료 기준은 "기사 내용" 이다.
+ */
+async function getTranslation(db: SupabaseClient<Database>, articleId: string, locale: Locale) {
+  const { data, error } = await db
+    .from('article_translations')
+    .select('title, one_line_summary, body')
+    .eq('article_id', articleId)
+    .eq('locale', locale)
+    .maybeSingle();
+
+  if (error) throw new Error(`번역본 조회 실패: ${error.message}`);
+  return data;
+}
+
+/**
+ * 이 기사가 존재하는 언어 (4.5).
+ *
+ * hreflang 은 **실제로 있는 언어만** 가리켜야 한다 (D-08). 번역이 없는데
+ * 대체 언어판이 있다고 알리면 검색엔진이 404 를 받는다.
+ * 영어는 원본이라 언제나 있다.
+ */
+export async function availableLocales(
+  db: SupabaseClient<Database>,
+  articleId: string,
+): Promise<Locale[]> {
+  const { data, error } = await db
+    .from('article_translations')
+    .select('locale')
+    .eq('article_id', articleId);
+
+  if (error) throw new Error(`번역 언어 조회 실패: ${error.message}`);
+  return [DEFAULT_LOCALE, ...(data ?? []).map((row) => row.locale)];
 }
 
 /** 정적 생성과 사이트맵용 */

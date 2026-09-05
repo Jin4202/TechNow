@@ -19,10 +19,14 @@ export const ALL_ASSETS: readonly Asset[] = [
  * 현재 Phase의 필수 자산.
  *
  * Phase 3: english_body
- * Phase 4: + korean_translation  (로드맵 4.6)
+ * Phase 4: + korean_translation  (로드맵 4.6) ← 지금
  * Phase 5: + cover_image         (로드맵 5.4)
+ *
+ * 여기에 자산을 더하면 새 기사는 `ready_pending` 으로 들어오고
+ * `src/pipeline/fill-assets.ts` 가 그것을 채워야 `ready` 가 된다.
+ * 못 채우면 그날 아침 발행에서 빠지고, 2회 연속이면 `failed` 다 (publish-ready.ts).
  */
-export const requiredAssets: readonly Asset[] = ['english_body'] as const;
+export const requiredAssets: readonly Asset[] = ['english_body', 'korean_translation'] as const;
 
 /**
  * 기사에 기록되는 스타일 가이드 버전 (`articles.style_guide_version`).

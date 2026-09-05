@@ -10,6 +10,7 @@ import {
 } from '@/config/models';
 import { thresholds } from '@/config/thresholds';
 import { projectMonthlyCost, type CostProjection } from '@/pipeline/cost-projection';
+import { sweepPendingAssets, type SweepResult } from '@/pipeline/fill-assets';
 import { recentPublishedArticles } from '@/db/articles';
 import { finishRun, startRun } from '@/db/pipeline-runs';
 import { insertRunTopics, type RunTopicRow } from '@/db/run-topics';
@@ -66,6 +67,8 @@ export interface DailyRunResult {
   selection: ReturnType<typeof summarizeSelection>;
   /** 실제로 만들어진 기사 수 */
   articlesBuilt: number;
+  /** 이전 런에서 남은 기사의 자산 채우기 결과 (4.4) */
+  sweep: SweepResult;
   /** 생성을 시도한 토픽 수. 실패해서 다음 순위로 내려간 횟수를 알 수 있다 */
   buildAttempts: number;
   buildFailures: { topicTitle: string; failure: string; detail: string }[];
@@ -96,6 +99,19 @@ export async function runDailyDiscovery(
   const info = options.onInfo ?? (() => {});
 
   try {
+    // ── 어제 남은 기사의 자산 채우기 (4.4) ──────────────────
+    //
+    // 오늘 기사를 만들기 **전**에 한다. 어제 번역에 실패한 기사가 오늘 아침
+    // 발행에 들어가야 하고, 오늘 작업이 어디서 막히든 어제 것은 이미 끝나 있어야 한다
+    const sweep = await sweepPendingAssets(db, claude, { onInfo: info });
+    if (sweep.scanned > 0) {
+      info('대기 기사 자산 스윕', {
+        scanned: sweep.scanned,
+        promoted: sweep.promoted,
+        stillWaiting: sweep.stillWaiting,
+      });
+    }
+
     // ── 수집 ────────────────────────────────────────────────
     const { items, failures } = await fetchFeeds(feeds);
     const unique = dedupeItems(items);
@@ -184,7 +200,8 @@ export async function runDailyDiscovery(
     const buildFailures: { topicTitle: string; failure: string; detail: string }[] = [];
     // 모델별로 나눠 쌓는다. 합쳐서 한 단가로 계산하면 Haiku 부분이 부풀려진다
     let variableHaiku: TokenUsage = ZERO_USAGE;
-    let variableSonnet: TokenUsage = ZERO_USAGE;
+    // 스윕의 번역 비용도 변동비다. 기사에 붙는 비용이므로 기사당 단가에 들어가야 한다
+    let variableSonnet: TokenUsage = sweep.usage;
     let buildAttempts = 0;
     let searchCalls = 0;
     let pagesFetched = rescore.pagesFetched;
@@ -328,6 +345,7 @@ export async function runDailyDiscovery(
       rescored: rescore.outcomes.filter((o) => o.rescored).length,
       selection,
       articlesBuilt: articleIdByIndex.size,
+      sweep,
       buildAttempts,
       buildFailures,
       costFixed: Number(costFixed.toFixed(4)),

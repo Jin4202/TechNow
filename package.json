@@ -16,7 +16,7 @@
     "db:reset": "supabase db reset",
     "feeds:live": "vitest run --config vitest.live.config.mts",
     "db:live": "vitest run --config vitest.live.config.mts tests/live/seen-items.live.ts",
-    "daily:live": "vitest run --config vitest.live.config.mts tests/live/run-daily.live.ts",
+    "daily:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/run-daily.live.ts",
     "group:live": "vitest run --config vitest.live.config.mts tests/live/group-topics.live.ts",
     "score:live": "vitest run --config vitest.live.config.mts tests/live/score-topics.live.ts",
     "fetch:live": "vitest run --config vitest.live.config.mts tests/live/fetch-page.live.ts",

@@ -31,7 +31,7 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
       data: { user },
     },
     articles,
-  ] = await Promise.all([supabase.auth.getUser(), listPublishedArticles(supabase)]);
+  ] = await Promise.all([supabase.auth.getUser(), listPublishedArticles(supabase, locale)]);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-16">

@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation';
 
 import { ArticleFeedback } from '@/components/article-feedback';
 import { categoryLabel } from '@/config/categories';
-import { LOCALES, toLocale } from '@/config/locales';
-import { getPublishedArticle } from '@/db/published-articles';
+import { toLocale } from '@/config/locales';
+import { availableLocales, getPublishedArticle } from '@/db/published-articles';
 import { createClient } from '@/db/supabase/server';
 
 /**
@@ -18,7 +18,7 @@ import { createClient } from '@/db/supabase/server';
 export async function generateMetadata({ params }: PageProps<'/[locale]/articles/[slug]'>) {
   const { locale, slug } = await params;
   const supabase = await createClient();
-  const article = await getPublishedArticle(supabase, slug);
+  const article = await getPublishedArticle(supabase, slug, toLocale(locale));
 
   if (!article) return { title: 'Not found' };
 
@@ -29,7 +29,10 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/articles
     // 이게 없으면 두 언어판이 서로의 중복 콘텐츠로 취급된다
     alternates: {
       canonical: `/${toLocale(locale)}/articles/${slug}`,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}/articles/${slug}`])),
+      // 번역이 있는 언어만 가리킨다. 없는 언어판은 404 다
+      languages: Object.fromEntries(
+        (await availableLocales(supabase, article.id)).map((l) => [l, `/${l}/articles/${slug}`]),
+      ),
     },
   };
 }
@@ -41,7 +44,7 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
 
   const t = await getTranslations();
   const supabase = await createClient();
-  const article = await getPublishedArticle(supabase, slug);
+  const article = await getPublishedArticle(supabase, slug, locale);
 
   if (!article) notFound();
 
