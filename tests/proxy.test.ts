@@ -58,4 +58,9 @@ describe('checkGate', () => {
       expect(checkGate(null, env)).toBe('allow');
     });
   });
+
+  it('개발 환경에서는 자격증명이 설정돼 있어도 요구하지 않는다', () => {
+    const env = { user: 'gate', password: 'secret', isDevelopment: true };
+    expect(checkGate(null, env)).toBe('allow');
+  });
 });
