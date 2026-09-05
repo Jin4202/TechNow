@@ -1,4 +1,5 @@
 import { addUsage, estimateCost, ZERO_USAGE, type TokenUsage } from '@/clients/anthropic';
+import { budget } from '@/config/budget';
 import { feeds } from '@/config/feeds';
 import {
   CACHE_READ_MULTIPLIER,
@@ -8,6 +9,7 @@ import {
   PRICING,
 } from '@/config/models';
 import { thresholds } from '@/config/thresholds';
+import { projectMonthlyCost, type CostProjection } from '@/pipeline/cost-projection';
 import { recentPublishedArticles } from '@/db/articles';
 import { finishRun, startRun } from '@/db/pipeline-runs';
 import { insertRunTopics, type RunTopicRow } from '@/db/run-topics';
@@ -69,6 +71,7 @@ export interface DailyRunResult {
   buildFailures: { topicTitle: string; failure: string; detail: string }[];
   costFixed: number;
   costVariable: number;
+  projection: CostProjection;
   failures: FeedFailure[];
   cleaned: { pendingDeleted: number; processedDeleted: number; sourceTextsDeleted: number };
 }
@@ -179,7 +182,9 @@ export async function runDailyDiscovery(
     // ── 기사 생성 (3.12, 3.15) ──────────────────────────────
     const articleIdByIndex = new Map<number, string>();
     const buildFailures: { topicTitle: string; failure: string; detail: string }[] = [];
-    let variableUsage: TokenUsage = ZERO_USAGE;
+    // 모델별로 나눠 쌓는다. 합쳐서 한 단가로 계산하면 Haiku 부분이 부풀려진다
+    let variableHaiku: TokenUsage = ZERO_USAGE;
+    let variableSonnet: TokenUsage = ZERO_USAGE;
     let buildAttempts = 0;
     let searchCalls = 0;
     let pagesFetched = rescore.pagesFetched;
@@ -205,7 +210,8 @@ export async function runDailyDiscovery(
         },
       });
 
-      variableUsage = addUsage(variableUsage, result.usage);
+      variableHaiku = addUsage(variableHaiku, result.usageHaiku);
+      variableSonnet = addUsage(variableSonnet, result.usageSonnet);
       searchCalls += result.searchCalls;
       pagesFetched += result.pagesFetched;
 
@@ -272,8 +278,25 @@ export async function runDailyDiscovery(
     const fixedUsage = addUsage(addUsage(grouping.usage, scoring.usage), rescore.usage);
     const multipliers = { cacheRead: CACHE_READ_MULTIPLIER, cacheWrite: CACHE_WRITE_MULTIPLIER };
     const costFixed = estimateCost(fixedUsage, PRICING[MODEL_HAIKU], multipliers);
-    // 변동비: 조사~작성. 대부분 Sonnet 이므로 그 단가로 추정한다
-    const costVariable = estimateCost(variableUsage, PRICING[MODEL_SONNET], multipliers);
+    // 변동비: 조사~작성. 쿼리 생성만 Haiku 라 단가를 나눠 계산한다
+    const costVariable =
+      estimateCost(variableHaiku, PRICING[MODEL_HAIKU], multipliers) +
+      estimateCost(variableSonnet, PRICING[MODEL_SONNET], multipliers);
+    const variableUsage = addUsage(variableHaiku, variableSonnet);
+
+    const projection = projectMonthlyCost({
+      costFixed,
+      costVariable,
+      articlesBuilt: articleIdByIndex.size,
+    });
+    // 막지 않고 남긴다. 하루 표본으로 파이프라인을 멈추면 오탐이 더 비싸다
+    if (projection.shouldAlert) {
+      warn('이 페이스가 이어지면 월 예산에 근접한다', {
+        projectedMonthlyUsd: projection.projectedMonthlyUsd,
+        monthlyUsd: budget.monthlyUsd,
+        variablePerArticle: projection.variablePerArticle,
+      });
+    }
 
     await finishRun(db, runId, 'success', {
       topics_seen: topics.length,
@@ -309,6 +332,7 @@ export async function runDailyDiscovery(
       buildFailures,
       costFixed: Number(costFixed.toFixed(4)),
       costVariable: Number(costVariable.toFixed(4)),
+      projection,
       failures,
       cleaned: { ...seenCleaned, sourceTextsDeleted },
     };

@@ -28,7 +28,8 @@
     "build:live": "vitest run --config vitest.live.config.mts tests/live/build-article.live.ts",
     "articles:export": "vitest run --config vitest.live.config.mts tests/live/export-articles.live.ts",
     "reference:build": "vitest run --config vitest.live.config.mts tests/live/build-reference.live.ts",
-    "evaluate": "vitest run --config vitest.live.config.mts tests/live/evaluate.live.ts"
+    "evaluate": "vitest run --config vitest.live.config.mts tests/live/evaluate.live.ts",
+    "cost:report": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cost-report.live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

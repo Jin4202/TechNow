@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getAnthropic } from '@/clients/anthropic';
 import { BraveClient } from '@/clients/brave';
 import { thresholds } from '@/config/thresholds';
+import { recentRunCosts } from '@/db/pipeline-runs';
 import { createServiceClient } from '@/db/supabase/service';
 import { buildTopic } from '@/pipeline/build-topic';
 import { publishReadyArticles } from '@/pipeline/publish/publish-ready';
@@ -40,6 +41,9 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
       console.log(`  ✗ ${f.topicTitle.slice(0, 56)} — ${f.failure} ${f.detail.slice(0, 40)}`);
     }
     console.log(`고정비 $${r.costFixed} + 변동비 $${r.costVariable}`);
+    console.log(
+      `월 환산 $${r.projection.projectedMonthlyUsd} (편당 $${r.projection.variablePerArticle})`,
+    );
 
     expect(r.failures).toEqual([]);
     expect(r.groupingFellBack).toBe(false);
@@ -50,6 +54,17 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
     if (r.articlesBuilt < thresholds.dailyCap) {
       expect(r.buildAttempts).toBeGreaterThan(r.articlesBuilt);
     }
+
+    // 3.16: 비용이 로그가 아니라 DB 에 남아야 한다.
+    // Trigger.dev 무료 티어 로그는 하루만 보관된다
+    const [logged] = await recentRunCosts(db, 1);
+    expect(logged!.status).toBe('success');
+    expect(logged!.costFixed, '고정비는 기사 0건인 날에도 0 이 아니다').toBeGreaterThan(0);
+    expect(logged!.costVariable).toBeGreaterThan(0);
+    expect(logged!.inputTokens).toBeGreaterThan(0);
+    expect(logged!.searchCalls).toBeGreaterThan(0);
+    expect(logged!.costFixed).toBeCloseTo(r.costFixed, 4);
+    expect(logged!.costVariable).toBeCloseTo(r.costVariable, 4);
   }, 1_800_000);
 
   it('기사가 출처와 함께 저장된다', async () => {

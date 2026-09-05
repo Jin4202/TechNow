@@ -1,6 +1,6 @@
 import { logger, schedules } from '@trigger.dev/sdk';
 
-import { getAnthropic } from '@/clients/anthropic';
+import { getAnthropic, ZERO_USAGE } from '@/clients/anthropic';
 import { createServiceClient } from '@/db/supabase/service';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
@@ -52,7 +52,8 @@ export const dailyPipeline = schedules.task({
           searchCalls: 0,
           pagesFetched: 0,
           sourceCount: 0,
-          usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+          usageHaiku: ZERO_USAGE,
+          usageSonnet: ZERO_USAGE,
         };
       },
       onWarn: (message, data) => logger.warn(message, data),

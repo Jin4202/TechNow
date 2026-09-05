@@ -1,4 +1,4 @@
-import { addUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
+import { ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { requiredAssets } from '@/config/required-assets';
 import { insertArticleWithSources } from '@/db/articles';
 import { insertSourceTexts } from '@/db/source-texts';
@@ -44,7 +44,15 @@ export interface BuildTopicResult {
   searchCalls: number;
   pagesFetched: number;
   sourceCount: number;
-  usage: TokenUsage;
+
+  /**
+   * 단계별로 모델이 다르므로 사용량을 나눠 돌려준다 (D-07 의 비용 로그).
+   *
+   * 하나로 합쳐 Sonnet 단가로 계산하면 Haiku 부분이 2배로 잡힌다.
+   * 예산 경보가 실제보다 일찍 울려 잘못된 판단을 부른다.
+   */
+  usageHaiku: TokenUsage;
+  usageSonnet: TokenUsage;
 }
 
 /**
@@ -71,7 +79,8 @@ export async function buildTopic(
     items: input.items,
   });
 
-  let usage = research.usage;
+  // 쿼리 생성은 Haiku 다 (models.generateQueries)
+  const usageHaiku = research.usage;
 
   if (research.skipped) {
     return {
@@ -82,7 +91,8 @@ export async function buildTopic(
       searchCalls: research.searchCalls,
       pagesFetched: research.pagesFetched,
       sourceCount: research.sources.length,
-      usage,
+      usageHaiku,
+      usageSonnet: ZERO_USAGE,
     };
   }
 
@@ -111,7 +121,9 @@ export async function buildTopic(
     sources,
     tier1CandidatesSeen: research.tier1CandidatesSeen,
   });
-  usage = addUsage(usage, built.usage);
+  // 작성·재작성·검증은 Sonnet, 클레임 추출만 Haiku 다 (D-24).
+  // 추출은 전체의 일부라 Sonnet 단가로 잡아도 오차가 작고, 안전한 쪽(과대추정)이다
+  const usageSonnet = built.usage;
 
   if (!built.article) {
     return {
@@ -122,7 +134,8 @@ export async function buildTopic(
       searchCalls: research.searchCalls,
       pagesFetched: research.pagesFetched,
       sourceCount: sources.length,
-      usage,
+      usageHaiku,
+      usageSonnet,
     };
   }
 
@@ -158,6 +171,7 @@ export async function buildTopic(
     searchCalls: research.searchCalls,
     pagesFetched: research.pagesFetched,
     sourceCount: sources.length,
-    usage: usage ?? ZERO_USAGE,
+    usageHaiku,
+    usageSonnet,
   };
 }
