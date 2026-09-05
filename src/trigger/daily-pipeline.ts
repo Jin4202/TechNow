@@ -1,5 +1,6 @@
 import { logger, schedules } from '@trigger.dev/sdk';
 
+import { getAnthropic } from '@/clients/anthropic';
 import { createServiceClient } from '@/db/supabase/service';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
@@ -28,8 +29,9 @@ export const dailyPipeline = schedules.task({
       timezone: payload.timezone,
     });
 
-    const result = await runDailyDiscovery(createServiceClient(), {
+    const result = await runDailyDiscovery(createServiceClient(), getAnthropic(), {
       onWarn: (message, data) => logger.warn(message, data),
+      onInfo: (message, data) => logger.info(message, data),
     });
 
     logger.info('일간 런 완료', { ...result, failures: result.failures.length });

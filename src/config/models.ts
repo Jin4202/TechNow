@@ -58,3 +58,19 @@ export const models = { ...sourceReadingModels, ...otherModels } as const;
 
 export type PipelineStep = keyof typeof models;
 export type ModelId = typeof MODEL_SONNET | typeof MODEL_HAIKU;
+
+/**
+ * 100만 토큰당 단가 (USD).
+ *
+ * 비용 로그(D-07)를 만들기 위한 값이다. 실제 청구는 Anthropic 콘솔이 기준이고,
+ * 여기 값은 추정치를 계산해 예산 알림(7.5)을 걸기 위한 것이다.
+ *
+ * 캐시: 읽기는 입력의 0.1배, 쓰기는 1.25배.
+ */
+export const PRICING: Record<ModelId, { input: number; output: number }> = {
+  [MODEL_SONNET]: { input: 2, output: 10 },
+  [MODEL_HAIKU]: { input: 1, output: 5 },
+};
+
+export const CACHE_READ_MULTIPLIER = 0.1;
+export const CACHE_WRITE_MULTIPLIER = 1.25;

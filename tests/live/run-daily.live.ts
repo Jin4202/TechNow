@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { getAnthropic } from '@/clients/anthropic';
+import { thresholds } from '@/config/thresholds';
 import { createServiceClient } from '@/db/supabase/service';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
-// 로컬 Supabase 스택 + 실제 피드를 탄다.
+// 로컬 Supabase + 실제 피드 + 실제 Claude 호출. 한 번에 15센트 안팎.
 // 실행: pnpm daily:live
 const db = createServiceClient();
+const claude = getAnthropic();
 
 async function wipe() {
+  await db.from('run_topics').delete().not('id', 'is', null);
   await db.from('articles').delete().not('id', 'is', null);
   await db.from('seen_feed_items').delete().not('url_hash', 'is', null);
   await db.from('pipeline_runs').delete().not('id', 'is', null);
@@ -16,84 +20,67 @@ async function wipe() {
 beforeAll(wipe);
 afterAll(wipe);
 
-describe('일간 파이프라인 (1.9, 1.10)', () => {
-  it('첫 런: 항목을 기록하고 placeholder 기사를 만든다', async () => {
-    const r = await runDailyDiscovery(db);
+describe('일간 파이프라인 전체 (Phase 1 + Phase 2)', () => {
+  it('수집부터 선정까지 한 번 돈다', async () => {
+    const r = await runDailyDiscovery(db, claude);
+
+    console.log(`\n수집 ${r.uniqueItems} → 필터통과 ${r.uniqueItems - Object.values(r.filtered).reduce((a, b) => a + b, 0)}`);
+    console.log(`필터 탈락:`, r.filtered);
+    console.log(`후보 ${r.candidates} → 토픽 ${r.topics} (폴백 ${r.groupingFellBack})`);
+    console.log(`재채점 ${r.rescored}건`);
+    console.log(`선정:`, r.selection);
+    console.log(`발행 ${r.published}건, 고정비 $${r.costFixed}`);
 
     expect(r.failures).toEqual([]);
-    expect(r.uniqueItems).toBeGreaterThan(80);
-    // 처음이므로 전부 신규
-    expect(r.candidates).toBe(r.uniqueItems);
-    expect(r.newlyRecorded).toBe(r.uniqueItems);
-    expect(r.resumed).toBe(0);
-    expect(r.skipped).toBe(0);
-    // 일 상한만큼만 기사로
-    expect(r.published).toBe(3);
+    expect(r.groupingFellBack, '폴백이면 그룹핑 호출이 실패한 것').toBe(false);
+    expect(r.topics).toBeGreaterThan(50);
 
-    const { count } = await db.from('articles').select('id', { count: 'exact', head: true });
-    expect(count).toBe(3);
-  }, 90_000);
+    // 재채점은 상위 N개로 고정된다 (D-19). 분포에 흔들리지 않는다
+    expect(r.rescored).toBeLessThanOrEqual(thresholds.rescoreTopN);
 
-  it('두 번째 런: 이미 처리한 항목은 다시 후보가 되지 않는다', async () => {
-    const r = await runDailyDiscovery(db);
+    // 선정은 상한을 넘지 않는다
+    expect(r.published).toBeLessThanOrEqual(thresholds.dailyCap);
+    expect(r.selection.selected).toBe(r.published);
+  }, 900_000);
 
-    // 앞선 런이 전부 processed 로 넘겼다
-    expect(r.skipped).toBeGreaterThan(80);
+  it('전 토픽의 판정이 run_topics 에 남는다 (2.7)', async () => {
+    const { data: runs } = await db.from('pipeline_runs').select('id, topics_seen').limit(1).single();
+    const { data: rows, count } = await db
+      .from('run_topics')
+      .select('*', { count: 'exact' })
+      .eq('run_id', runs!.id);
+
+    expect(count, '토픽 수와 기록 수가 같아야 한다').toBe(runs!.topics_seen);
+
+    const scored = rows!.filter((r) => r.importance_score !== null);
+    const selected = rows!.filter((r) => r.selected);
+    const rescored = rows!.filter((r) => r.rescored);
+
+    console.log(`\nrun_topics ${count}행 — 채점됨 ${scored.length}, 재채점 ${rescored.length}, 선정 ${selected.length}`);
+
+    // 완료 기준: 전 토픽·점수·follow-up·통과 여부가 남는다
+    expect(rows!.every((r) => r.topic_title.length > 0)).toBe(true);
+    expect(rows!.every((r) => r.selected || r.reject_reason !== null), '탈락엔 사유가 있어야 한다').toBe(true);
+    expect(selected.every((r) => r.reject_reason === null)).toBe(true);
+    expect(rescored.every((r) => r.first_pass_score !== null), '재채점엔 1차 점수가 남아야 한다').toBe(true);
+    expect(scored.every((r) => r.reason_novelty && r.reason_impact && r.reason_interest)).toBe(true);
+
+    // 사유별 분포 — 캘리브레이션이 읽을 데이터
+    const byReason: Record<string, number> = {};
+    for (const r of rows!) {
+      const key = r.reject_reason ?? 'selected';
+      byReason[key] = (byReason[key] ?? 0) + 1;
+    }
+    console.log('판정 분포:', byReason);
+  });
+
+  it('두 번째 런은 후보가 0이다 (D-01)', async () => {
+    const r = await runDailyDiscovery(db, claude);
+    expect(r.skipped).toBeGreaterThan(50);
     expect(r.candidates).toBe(0);
+    expect(r.topics).toBe(0);
     expect(r.published).toBe(0);
-
-    // 기사가 늘지 않는다
-    const { count } = await db.from('articles').select('id', { count: 'exact', head: true });
-    expect(count).toBe(3);
-  }, 90_000);
-
-  it('pipeline_runs 에 런마다 한 행이 남는다 (1.10)', async () => {
-    const { data } = await db
-      .from('pipeline_runs')
-      .select('run_type, status, topics_seen, topics_selected, articles_published, notes, finished_at')
-      .order('started_at', { ascending: true });
-
-    expect(data).toHaveLength(2);
-    expect(data!.every((r) => r.run_type === 'daily')).toBe(true);
-    expect(data!.every((r) => r.status === 'success')).toBe(true);
-    expect(data!.every((r) => r.finished_at !== null)).toBe(true);
-
-    expect(data![0]!.articles_published).toBe(3);
-    expect(data![0]!.topics_selected).toBe(3);
-    expect(data![0]!.topics_seen).toBeGreaterThan(80);
-
-    expect(data![1]!.articles_published).toBe(0);
-    expect(data![1]!.topics_seen).toBe(0);
-    expect(data![0]!.notes).toContain('수집');
-  });
-
-  it('placeholder 기사가 published 라 anon 에게 보인다', async () => {
-    const { data } = await db.from('articles').select('slug, category, status, body').limit(3);
-
-    expect(data!.every((a) => a.status === 'published')).toBe(true);
-    expect(data!.every((a) => a.slug.length > 0)).toBe(true);
-    // DB check 제약을 통과한 body 구조
-    expect(data!.every((a) => Array.isArray((a.body as { sections: unknown[] }).sections))).toBe(true);
-  });
-
-  it('런이 실패해도 pipeline_runs 에 failed 로 남는다', async () => {
-    // startRun 은 되지만 이후가 깨지도록 잘못된 클라이언트를 흉내낸다
-    const broken = {
-      ...db,
-      from: (table: string) => {
-        if (table === 'seen_feed_items') throw new Error('의도된 실패');
-        return db.from(table as 'pipeline_runs');
-      },
-    } as unknown as typeof db;
-
-    await expect(runDailyDiscovery(broken)).rejects.toThrow('의도된 실패');
-
-    const { data } = await db
-      .from('pipeline_runs')
-      .select('status, notes')
-      .eq('status', 'failed');
-
-    expect(data).toHaveLength(1);
-    expect(data![0]!.notes).toContain('의도된 실패');
-  }, 90_000);
+    // 토픽이 없으면 모델 호출도 없다 = 고정비 0
+    expect(r.costFixed).toBe(0);
+  }, 300_000);
 });

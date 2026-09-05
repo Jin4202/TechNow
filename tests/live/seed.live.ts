@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { getAnthropic } from '@/clients/anthropic';
 import { createServiceClient } from '@/db/supabase/service';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
@@ -12,7 +13,7 @@ import { runDailyDiscovery } from '@/pipeline/run-daily';
 describe('로컬 시드', () => {
   it('일간 런을 한 번 돌린다', async () => {
     const db = createServiceClient();
-    const r = await runDailyDiscovery(db);
+    const r = await runDailyDiscovery(db, getAnthropic());
     console.log('\n결과:', {
       후보: r.candidates,
       발행: r.published,

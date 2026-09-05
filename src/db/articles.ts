@@ -31,3 +31,26 @@ export async function insertPlaceholders(
   if (error) throw new Error(`placeholder 기사 삽입 실패: ${error.message}`);
   return data?.length ?? 0;
 }
+
+/**
+ * 최근 발행 기사 제목 (로드맵 2.3).
+ *
+ * 그룹핑 프롬프트에 넣어 follow-up 을 판정한다.
+ * 기간은 thresholds.followUpWindowDays.
+ */
+export async function recentPublishedArticles(
+  db: ServiceClient,
+  days: number,
+): Promise<{ id: string; title: string }[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await db
+    .from('articles')
+    .select('id, title')
+    .eq('status', 'published')
+    .gte('published_at', since)
+    .order('published_at', { ascending: false });
+
+  if (error) throw new Error(`최근 발행 기사 조회 실패: ${error.message}`);
+  return data ?? [];
+}

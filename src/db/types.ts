@@ -311,6 +311,103 @@ export type Database = {
         }
         Relationships: []
       }
+      run_topics: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          feed_names: string[]
+          first_pass_score: number | null
+          follow_up_of: string | null
+          id: string
+          importance_score: number | null
+          item_count: number
+          rank: number | null
+          reason_impact: string | null
+          reason_interest: string | null
+          reason_novelty: string | null
+          reject_reason: string | null
+          rescore_skip_reason: string | null
+          rescored: boolean
+          run_id: string
+          score_impact: number | null
+          score_interest: number | null
+          score_novelty: number | null
+          selected: boolean
+          topic_title: string
+          trigger_url: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          feed_names?: string[]
+          first_pass_score?: number | null
+          follow_up_of?: string | null
+          id?: string
+          importance_score?: number | null
+          item_count: number
+          rank?: number | null
+          reason_impact?: string | null
+          reason_interest?: string | null
+          reason_novelty?: string | null
+          reject_reason?: string | null
+          rescore_skip_reason?: string | null
+          rescored?: boolean
+          run_id: string
+          score_impact?: number | null
+          score_interest?: number | null
+          score_novelty?: number | null
+          selected?: boolean
+          topic_title: string
+          trigger_url?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          feed_names?: string[]
+          first_pass_score?: number | null
+          follow_up_of?: string | null
+          id?: string
+          importance_score?: number | null
+          item_count?: number
+          rank?: number | null
+          reason_impact?: string | null
+          reason_interest?: string | null
+          reason_novelty?: string | null
+          reject_reason?: string | null
+          rescore_skip_reason?: string | null
+          rescored?: boolean
+          run_id?: string
+          score_impact?: number | null
+          score_interest?: number | null
+          score_novelty?: number | null
+          selected?: boolean
+          topic_title?: string
+          trigger_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_topics_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_topics_follow_up_of_fkey"
+            columns: ["follow_up_of"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_topics_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scraps: {
         Row: {
           article_id: string

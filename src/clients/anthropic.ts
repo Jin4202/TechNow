@@ -54,3 +54,18 @@ export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
     cacheCreationTokens: a.cacheCreationTokens + b.cacheCreationTokens,
   };
 }
+
+/** 사용량을 USD 추정치로 바꾼다 (D-07 의 비용 로그용) */
+export function estimateCost(
+  usage: TokenUsage,
+  pricing: { input: number; output: number },
+  multipliers: { cacheRead: number; cacheWrite: number },
+): number {
+  const perToken = (rate: number) => rate / 1_000_000;
+  return (
+    usage.inputTokens * perToken(pricing.input) +
+    usage.outputTokens * perToken(pricing.output) +
+    usage.cacheReadTokens * perToken(pricing.input) * multipliers.cacheRead +
+    usage.cacheCreationTokens * perToken(pricing.input) * multipliers.cacheWrite
+  );
+}
