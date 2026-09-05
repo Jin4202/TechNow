@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // trigger.dev 개발 서버가 만드는 번들 산출물
+    ".trigger/**",
   ]),
 ]);
 

@@ -153,6 +153,19 @@ D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않
   지금 목록에는 RDF 피드가 없으므로 파서는 RSS 2.0 과 Atom 만 다루면 된다.
   Nature 를 추가하려면 파서에 RDF 처리를 먼저 넣어야 한다
 
+### D-17. Node 22 LTS 를 쓴다
+
+`.nvmrc` = 22, `package.json` engines `>=22.0.0`, CI 는 `node-version-file: .nvmrc`.
+
+**이유**: `@supabase/supabase-js` 가 Node 20 이하를 지원 중단 예정이라고 경고하고,
+실제로 **Node 20 에서는 서비스 클라이언트 생성이 실패한다** — "native WebSocket not found".
+Node 20 은 `WebSocket` 이 `--experimental-websocket` 플래그 뒤에 있고 22 부터 기본 제공된다.
+`ws` 폴리필로 덮을 수도 있지만 지원 중단을 미루는 것뿐이고, Vercel·Trigger.dev·GitHub Actions
+모두 Node 22 를 지원한다.
+
+**주의**: Next.js 서버(`@supabase/ssr`)는 Node 20 에서도 동작했다. 실패하는 건 파이프라인이
+쓰는 `createServiceClient` 쪽이다. 로컬에서 `nvm use` 를 빠뜨리면 파이프라인 테스트만 깨진다.
+
 ---
 
 ## 참고 — Next 16 변경점 (결정이 아니라 사실)

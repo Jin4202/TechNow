@@ -44,3 +44,6 @@ supabase/.branches
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# trigger.dev 로컬 개발 산출물
+.trigger

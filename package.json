@@ -14,7 +14,8 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:secrets",
     "db:types": "supabase gen types typescript --local > src/db/types.ts",
     "db:reset": "supabase db reset",
-    "feeds:live": "vitest run --config vitest.live.config.mts"
+    "feeds:live": "vitest run --config vitest.live.config.mts",
+    "db:live": "vitest run --config vitest.live.config.mts tests/live/seen-items.live.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
@@ -37,5 +38,8 @@
     "typescript": "^5",
     "vitest": "^5.0.0"
   },
-  "packageManager": "pnpm@10.34.3"
+  "packageManager": "pnpm@10.34.3",
+  "engines": {
+    "node": ">=22.0.0"
+  }
 }

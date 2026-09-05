@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/live/**/*.live.ts'],
+    setupFiles: ['tests/live/setup.ts'],
   },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
