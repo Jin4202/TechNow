@@ -103,6 +103,37 @@ D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않
 
 ---
 
+## 2026-09-04 — Phase 1 (D-15 ~ D-16)
+
+### D-15. 카테고리 7종의 한국어 명칭과 식별자 확정
+
+| 식별자 (DB enum · URL) | English | 한국어 |
+|---|---|---|
+| `ai-computing` | AI & Computing | AI·컴퓨팅 |
+| `space-astronomy` | Space & Astronomy | 우주·천문 |
+| `health-biotech` | Health & Biotech | 건강·바이오 |
+| `climate-energy` | Climate & Energy | 기후·에너지 |
+| `physics-materials` | Physics & Materials | 물리·소재 |
+| `robotics-hardware` | Robotics & Hardware | 로봇·하드웨어 |
+| `industry-policy` | Tech Industry & Policy | 산업·정책 |
+
+**식별자 표기**: kebab-case 하나로 통일해 DB enum 값과 URL 슬러그(로드맵 7.3의 카테고리 필터)에 그대로 쓴다. snake_case DB 값과 kebab URL 슬러그를 따로 두면 매핑 테이블이 하나 더 생긴다.
+
+**한국어 명칭**: 가운뎃점으로 두 낱말을 잇는 짧은 형태로 통일했다. 목록 페이지의 카테고리 칩과 월간 요약의 소제목에 들어가므로 길면 줄바꿈이 생긴다.
+
+**설명문**: `src/config/categories.ts`의 `description`은 나중에 분류 프롬프트에 그대로 들어간다. 카테고리 간 경계가 드러나게 썼다. 늘리지 않는다 — 하루 3개짜리 사이트에서 카테고리가 더 생기면 빈 섹션만 늘어난다.
+
+### D-16. RSS 피드 선정 기준 (실제 목록은 1.5)
+
+- **영어 피드만.** 한국어는 번역으로만 만든다 (기획서 §0)
+- **3~5개**, 7개 카테고리를 모두 커버. 카테고리당 최소 1개 경로가 있어야 한다
+- 과학과 기술의 비중을 대략 균등하게
+- **1차 출처 성격의 피드(기관·저널 발표)와 종합 과학·기술 매체를 섞는다.** 전자만 쓰면 산업·정책이 비고, 후자만 쓰면 Tier 1 확보(3.10)가 어려워진다
+- **페이월 매체는 제외한다.** RSS 자체는 주제 발굴용이라 본문이 필요 없지만, 근접 재채점(2.5)에서 트리거 페이지를 fetch하므로 막히면 그 토픽만 불리해진다
+- 피드가 죽어도 다른 피드가 같은 카테고리를 덮도록, 한 카테고리를 단일 피드에만 의존시키지 않는다
+
+---
+
 ## 참고 — Next 16 변경점 (결정이 아니라 사실)
 
 `middleware.ts` 파일 규약이 **`proxy.ts`로 개명**되었고, export 이름도 `middleware` → `proxy`다. `create-next-app`이 생성한 `AGENTS.md`가 "이 Next는 학습 데이터와 다르다"고 경고하며 `node_modules/next/dist/docs/`를 읽으라고 안내한다. Next 관련 작업 전에 그 문서를 확인할 것 (`CLAUDE.md` §2.9).
@@ -115,7 +146,6 @@ D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않
 
 | 항목 | 확인 태스크 |
 |---|---|
-| 7개 카테고리의 한국어 명칭, 카테고리 enum 확정 | 1.0 |
 | RSS 피드 최종 목록 | 1.5 |
 | Brave Search 무료 티어 월 쿼리 한도와 예상 사용량 | 3.2a |
 | prompt cache TTL과 파이프라인 체인 소요 시간의 관계 | 3.8a |
