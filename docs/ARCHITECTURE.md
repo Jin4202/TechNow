@@ -328,7 +328,7 @@ Phase 2.6의 완료 기준이 "config를 바꾸면 배포 없이 선정 결과�
 
 ## 9. 보안·운영
 
-- 접근 게이트: Phase 7 이전까지 Vercel 배포 보호 또는 미들웨어 basic auth. 7.7에서 제거
+- 접근 게이트: `src/proxy.ts`의 basic auth (D-11). `GATE_USER`/`GATE_PASSWORD` 미설정 시 통과가 아니라 503으로 차단한다. `7.7`에서 파일째 제거
 - 사용자 데이터: profile, scrap, monthly summary만. 삭제 요청 시 cascade 되도록 FK 설계
 - 알림: 배치 실패(7.4), 예산 80% 초과(7.5), 기사 2회 연속 hold-back
 - 기사 오류 발생 시 절차: `published` → `unpublished` 로 상태 변경 (삭제 아님) → 필요하면 새 기사 생성

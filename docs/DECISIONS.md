@@ -71,6 +71,46 @@ Storage가 아니라 DB 테이블을 쓴다: `source_texts(article_id | run_id, 
 
 ---
 
+## 2026-09-04 — Phase 0 실행 중 확정 (D-10 ~ D-14)
+
+### D-10. 패키지 매니저는 pnpm
+
+로컬에 이미 pnpm 10.34.3이 있고 `create-next-app --use-pnpm`으로 스캐폴딩했다. CI(`pnpm/action-setup`)와 Vercel 모두 `pnpm-lock.yaml`로 자동 인식한다.
+
+### D-11. 접근 게이트는 Next 미들웨어 basic auth
+
+Vercel Deployment Protection 대신 `src/proxy.ts`에서 basic auth를 구현한다.
+
+**이유**: Vercel의 비밀번호 보호는 유료 플랜 기능이고, 무료 플랜의 Vercel Authentication은 계정 소유자만 들어갈 수 있어 남에게 보여줄 수 없다. 미들웨어 방식은 무료이고 자격증명을 공유할 수 있다.
+**설계**: `GATE_USER`/`GATE_PASSWORD`가 비어 있으면 **통과가 아니라 503으로 차단**한다(fail closed). 설정 누락이 게이트 해제로 이어지면 안 된다. 개발 환경만 예외로 통과시킨다.
+**제거 시점**: 로드맵 `7.7`.
+
+### D-12. Supabase는 로컬 스택 + 클라우드 병행
+
+`supabase init` + `supabase start`로 로컬 Docker 스택을 쓰고, 마이그레이션을 로컬에서 검증한 뒤 클라우드에 push한다.
+
+**이유**: RLS 정책(D-02)은 실험 횟수가 많고 되돌리기가 잦다. 실제 프로젝트에 직접 실험하면 `1.1a`와 `7.6a`의 반복 비용이 커진다.
+
+### D-13. `[locale]` 재배치는 Phase 0이 아니라 4.0에서
+
+D-08의 `/[locale]/articles/[slug]` 구조를 Phase 0에서 미리 만들지 않고 `src/app/`을 평면으로 둔다.
+
+**이유**: next-intl 없이 `[locale]` 세그먼트만 만들면 라우팅이 깨진다. Phase 1의 기사 목록(1.12)은 영문 UI라 평면 경로로 충분하고, 4.0에서 파일 몇 개를 옮기는 비용이 더 싸다.
+
+### D-14. 커밋 메시지에 Claude 표기를 넣지 않는다
+
+`Co-Authored-By: Claude ...` 트레일러와 `🤖 Generated with ...` 문구를 쓰지 않는다. 커밋은 `feat(0.2): ...` 처럼 로드맵 태스크 번호로 시작한다. `CLAUDE.md` §4에 규칙으로 반영했다.
+
+---
+
+## 참고 — Next 16 변경점 (결정이 아니라 사실)
+
+`middleware.ts` 파일 규약이 **`proxy.ts`로 개명**되었고, export 이름도 `middleware` → `proxy`다. `create-next-app`이 생성한 `AGENTS.md`가 "이 Next는 학습 데이터와 다르다"고 경고하며 `node_modules/next/dist/docs/`를 읽으라고 안내한다. Next 관련 작업 전에 그 문서를 확인할 것 (`CLAUDE.md` §2.9).
+
+`pnpm typecheck`는 `next typegen && tsc --noEmit`이다. Next 16이 `LayoutProps` 같은 라우트 타입을 생성하므로 typegen 없이 `tsc`만 돌리면 실패한다.
+
+---
+
 ## 미기록 (해당 태스크에서 확인 후 추가할 것)
 
 | 항목 | 확인 태스크 |

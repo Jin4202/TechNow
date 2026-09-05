@@ -44,6 +44,7 @@ RSS로 주제를 발굴 → 3~5개 출처를 조사 → 원본 영문 기사 작
    - `claude-haiku-4-5-20251001` — 쿼리 생성·그룹핑·1차 채점·재채점
    출처 본문을 읽는 단계 중 하나라도 모델을 바꾸면 prompt cache가 깨져 비용이 뛴다. 비용 최적화를 하더라도 이 네 단계는 건드리지 말 것.
 8. **외부 페이지를 가져올 때 robots.txt를 확인하고, 식별 가능한 User-Agent를 쓰고, 도메인당 요청 간격을 둔다.**
+9. **Next 16은 학습 데이터와 다르다.** API·규약·파일 구조가 바뀌었다 (예: `middleware.ts` → `proxy.ts`). Next 관련 코드를 쓰기 전에 `node_modules/next/dist/docs/` 의 해당 문서를 읽는다. 저장소 루트의 `AGENTS.md`가 이 경고를 담고 있으며 `next dev`가 자동 재생성한다.
 
 ---
 
@@ -54,7 +55,8 @@ CLAUDE.md
 docs/                     MASTER_PLAN / ARCHITECTURE / ROADMAP / DECISIONS / RUBRIC / STYLE_GUIDE
 supabase/migrations/      SQL 마이그레이션 (스키마 변경은 반드시 여기 파일로)
 src/
-  app/[locale]/           Next.js App Router. 공개 페이지 + 계정 페이지
+  app/                    Next.js App Router. 4.0에서 app/[locale]/ 로 재배치 (D-08, D-13)
+  proxy.ts                접근 게이트. Next 16에서 middleware.ts 규약이 proxy.ts 로 개명됨
   components/             UI 컴포넌트
   messages/               next-intl 메시지 (en.json / ko.json)
   config/                 튜닝 값. models / thresholds / feeds / source-tiers / required-assets
@@ -84,7 +86,8 @@ trigger.config.ts
 - **출처 본문 블록은 네 단계에서 동일한 순서·형식으로 프롬프트 앞부분에 배치한다.** 순서가 달라지면 캐시 프리픽스가 깨진다. 단계별로 다른 지시문은 블록 뒤에 붙인다.
 - 파이프라인 단계를 추가하면 `pipeline_runs`에 그 단계의 비용(토큰/호출 수)도 같이 기록한다. Trigger.dev 무료 티어는 로그를 하루만 보관하므로, 로그가 아니라 DB가 기록의 원본이다.
 - 스키마 변경은 항상 `supabase/migrations/`의 새 파일로. 기존 마이그레이션을 편집하지 않는다.
-- 커밋은 태스크 번호로 시작: `feat(2.4): first-pass importance scoring`.
+- 커밋은 태스크 번호로 시작: `feat(2.4): 1차 중요도 채점`.
+- **커밋 메시지와 PR 본문에 Claude 관련 표기를 넣지 않는다.** `Co-Authored-By: Claude ...` 트레일러, `🤖 Generated with ...` 문구 모두 제외한다.
 
 ## 5. 하지 말 것
 

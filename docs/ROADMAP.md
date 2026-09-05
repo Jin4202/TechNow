@@ -11,9 +11,14 @@
 
 ## 현재 위치
 
-**Phase 0 / 아직 시작 안 함.** 저장소에는 문서만 있다.
-구조 리뷰 9개 항목은 확정되어 `DECISIONS.md`(D-01~D-09)에 기록됨 — `1.0a` 완료.
-다음 할 일: `0.1` 저장소 초기화.
+**Phase 0 완료. Phase 1 미착수.**
+
+- 구조 리뷰 9개 항목 확정 → `DECISIONS.md` D-01~D-09 (`1.0a` 완료)
+- Phase 0 실행 중 결정 5건 → `DECISIONS.md` D-10~D-14
+- 앱이 basic auth 뒤에서 Vercel에 떠 있고, CI가 typecheck·lint·test·시크릿검사를 돌린다
+- Supabase 로컬 스택 기동 중 (스키마는 아직 없음)
+
+다음 할 일: `1.0` 7개 카테고리와 한국어 명칭, 피드 범위, config 기본값을 `DECISIONS.md`에 확정.
 
 ---
 
@@ -21,15 +26,19 @@
 
 기획서에 없지만 없으면 1.1부터 막히는 것들.
 
-| # | 태스크 | 완료 기준 |
-|---|---|---|
-| 0.1 | Next.js(App Router) + TypeScript + Tailwind 초기화, git 저장소 생성 | `pnpm dev` 로 기본 페이지가 뜬다 |
-| 0.2 | `src/` 디렉터리 구조 생성 (`CLAUDE.md` §3), 빈 config 파일 배치 | 구조가 문서와 일치한다 |
-| 0.3 | 환경변수 규약 확정. `.env.example` 작성, service role key는 Trigger.dev 전용임을 주석으로 명시 | `.env.example`에 앱용/파이프라인용 키가 분리되어 있다 |
-| 0.4 | Vitest + lint + typecheck, 저장소 CI (푸시 시 실행) | 의도적으로 깨뜨린 테스트가 CI에서 잡힌다 |
-| 0.5 | 접근 게이트 (미들웨어 basic auth 또는 Vercel 배포 보호) | 비밀번호 없이 배포본에 접근할 수 없다 |
+| # | 태스크 | 완료 기준 | |
+|---|---|---|---|
+| 0.1 | Next.js 16(App Router) + TypeScript + Tailwind 4 초기화, git 저장소 연결 | `pnpm dev` 로 기본 페이지가 뜨고 `origin/main`에 올라감 | ✅ |
+| 0.2 | `src/` 디렉터리 구조 (`CLAUDE.md` §3) + config 상수 파일 | 구조가 문서와 일치하고 config 값이 `DECISIONS.md`와 일치 | ✅ |
+| 0.3 | 환경변수 규약. `.env.example` 2블록 분리, `env.ts`의 앱/파이프라인 스키마 분리 | 파이프라인 키가 별도 블록·별도 접근자로 격리됨 | ✅ |
+| 0.4 | Vitest + lint + typecheck + CI + 시크릿 유출 검사 | 깨뜨린 테스트와 앱 코드의 서비스 키를 CI가 각각 잡음 (실제 확인) | ✅ |
+| 0.5 | 접근 게이트 (`src/proxy.ts` basic auth) + Vercel 배포 | 배포본이 자격증명 없이 401, 자격증명으로 200 | ✅ |
+| 0.6 | **[추가]** Supabase 로컬 스택 (`supabase init` / `start`) | `supabase status` 정상, `.env.local`이 로컬 스택을 가리킴 | ✅ |
+| 0.7 | **[추가]** 문서 갱신 (ROADMAP / CLAUDE.md 커밋 규칙 / DECISIONS) | 실행 중 내린 결정이 `DECISIONS.md`에 기록됨 | ✅ |
 
-**Phase 0 완료 조건**: 빈 앱이 게이트 뒤에 배포되고, CI가 돌고, 폴더 구조가 `ARCHITECTURE.md`와 맞는다.
+**Phase 0 완료 조건**: 빈 앱이 게이트 뒤에 배포되고, CI가 돌고, 폴더 구조가 `ARCHITECTURE.md`와 맞는다. — **충족**
+
+배포: https://technow-seven.vercel.app (basic auth 뒤. `7.7`에서 게이트 제거)
 
 ---
 
