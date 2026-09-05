@@ -22,7 +22,9 @@
     "score:live": "vitest run --config vitest.live.config.mts tests/live/score-topics.live.ts",
     "fetch:live": "vitest run --config vitest.live.config.mts tests/live/fetch-page.live.ts",
     "brave:live": "vitest run --config vitest.live.config.mts tests/live/brave.live.ts",
-    "research:live": "vitest run --config vitest.live.config.mts tests/live/research.live.ts"
+    "research:live": "vitest run --config vitest.live.config.mts tests/live/research.live.ts",
+    "fixtures:build": "vitest run --config vitest.live.config.mts tests/live/build-fixtures.live.ts",
+    "write:live": "vitest run --config vitest.live.config.mts tests/live/write-article.live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

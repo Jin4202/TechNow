@@ -72,5 +72,24 @@ export const PRICING: Record<ModelId, { input: number; output: number }> = {
   [MODEL_HAIKU]: { input: 1, output: 5 },
 };
 
+/**
+ * 단계별 effort (Sonnet 전용 — Haiku 4.5 는 effort 를 지원하지 않는다).
+ *
+ * 실측: 작성 단계에서 high 는 사고 토큰을 2배 쓰는데 결과물은 medium 과
+ * 구분되지 않았다 (단어 수 879 vs 820, 긴 문장 16 vs 16). 기사당 $0.023 차이.
+ *
+ * 다만 낮은 effort 가 근거 오류를 늘리면 grounding 검증이 재작성을 유발해
+ * 오히려 비싸질 수 있다. 검증 단계는 마지막 방어선이라 high 로 둔다.
+ * 재작성 비율은 3.17 에서 확인하고 조정한다.
+ */
+export const EFFORT = {
+  write: 'medium',
+  rewrite: 'medium',
+  extractClaims: 'medium',
+  verifyClaims: 'high',
+  translate: 'medium',
+  monthlySummary: 'medium',
+} as const;
+
 export const CACHE_READ_MULTIPLIER = 0.1;
 export const CACHE_WRITE_MULTIPLIER = 1.25;
