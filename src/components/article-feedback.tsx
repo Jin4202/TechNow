@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 
-import { submitFeedback } from '@/app/articles/actions';
+import { submitFeedback } from '@/app/[locale]/articles/actions';
 
 /**
  * "이해하기 쉬웠나요?" (D-28, 로드맵 3.14a).

@@ -32,7 +32,7 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 **남은 확인**: Phase 1 완료 조건인 "이틀 연속 **자동으로** 쌓인다" 는
 01:00 America/Los_Angeles 스케줄이 이틀 연속 도는 것을 봐야 한다.
 
-다음 할 일: **Phase 4** — `4.0` `/[locale]/articles/[slug]` 라우팅 적용 (D-08).
+다음 할 일: **Phase 4** — `4.1` next-intl 설정 + `en`/`ko` 메시지 파일 + Pretendard.
 `2.8` 은 일주일치 데이터가 쌓인 뒤에 한다.
 
 ---
@@ -147,7 +147,7 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 
 | # | 태스크 | 완료 기준 |
 |---|---|---|
-| 4.0 | **[추가]** `/[locale]/articles/[slug]` 라우팅 적용 (D-08) | `/en/...`·`/ko/...`가 각각 동작하고 hreflang이 나감 |
+| ~~4.0~~ | ~~**[추가]** `/[locale]/articles/[slug]` 라우팅 적용 (D-08)~~ | **완료.** `/en`·`/ko` 동작, hreflang·canonical 확인. proxy 가 언어 없는 경로를 308 로 돌린다 |
 | 4.1 | next-intl 설정, `en`/`ko` 메시지 파일, Pretendard 로드 | UI 문자열이 locale로 전환됨 |
 | 4.2 | 프로필 페이지의 언어 설정 + 언어 없는 경로의 리다이렉트 기본값 (D-08) | 변경 시 `locale` 갱신 + `/` 진입 시 해당 locale로 리다이렉트 |
 | 4.3 | 번역 프롬프트 (영→한, structured output, Sonnet) | 한 기사가 `article_translations`에 한국어 행을 만듦 |

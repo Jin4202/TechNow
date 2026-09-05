@@ -1,11 +1,24 @@
 import Link from 'next/link';
 
-import { logout } from '@/app/login/actions';
+import { logout } from '@/app/[locale]/login/actions';
 import { ArticleCard } from '@/components/article-card';
+import { LOCALES, toLocale } from '@/config/locales';
 import { listPublishedArticles } from '@/db/published-articles';
 import { createClient } from '@/db/supabase/server';
 
-export default async function Home() {
+/** 목록도 두 언어판이 서로를 가리킨다 (D-08) */
+export async function generateMetadata({ params }: PageProps<'/[locale]'>) {
+  const locale = toLocale((await params).locale);
+  return {
+    alternates: {
+      canonical: `/${locale}`,
+      languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])),
+    },
+  };
+}
+
+export default async function Home({ params }: PageProps<'/[locale]'>) {
+  const locale = toLocale((await params).locale);
   const supabase = await createClient();
 
   const [
@@ -36,7 +49,7 @@ export default async function Home() {
           </form>
         ) : (
           <Link
-            href="/login"
+            href={`/${locale}/login`}
             className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
           >
             Log in
@@ -53,7 +66,7 @@ export default async function Home() {
         ) : (
           <div>
             {articles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard key={article.id} article={article} locale={locale} />
             ))}
           </div>
         )}

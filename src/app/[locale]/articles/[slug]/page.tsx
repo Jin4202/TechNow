@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { ArticleFeedback } from '@/components/article-feedback';
 import { categoryLabel } from '@/config/categories';
+import { LOCALES, toLocale } from '@/config/locales';
 import { getPublishedArticle } from '@/db/published-articles';
 import { createClient } from '@/db/supabase/server';
 
@@ -13,8 +14,8 @@ import { createClient } from '@/db/supabase/server';
  * 존재하지 않는 것과 구분되지 않는다 (D-02).
  */
 
-export async function generateMetadata({ params }: PageProps<'/articles/[slug]'>) {
-  const { slug } = await params;
+export async function generateMetadata({ params }: PageProps<'/[locale]/articles/[slug]'>) {
+  const { locale, slug } = await params;
   const supabase = await createClient();
   const article = await getPublishedArticle(supabase, slug);
 
@@ -23,11 +24,18 @@ export async function generateMetadata({ params }: PageProps<'/articles/[slug]'>
   return {
     title: article.title,
     description: article.one_line_summary,
+    // 같은 기사의 다른 언어판을 검색엔진에 알린다 (D-08).
+    // 이게 없으면 두 언어판이 서로의 중복 콘텐츠로 취급된다
+    alternates: {
+      canonical: `/${toLocale(locale)}/articles/${slug}`,
+      languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}/articles/${slug}`])),
+    },
   };
 }
 
-export default async function ArticlePage({ params }: PageProps<'/articles/[slug]'>) {
-  const { slug } = await params;
+export default async function ArticlePage({ params }: PageProps<'/[locale]/articles/[slug]'>) {
+  const { slug, locale: localeParam } = await params;
+  const locale = toLocale(localeParam);
   const supabase = await createClient();
   const article = await getPublishedArticle(supabase, slug);
 
@@ -42,7 +50,7 @@ export default async function ArticlePage({ params }: PageProps<'/articles/[slug
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 py-10 sm:px-6 sm:py-16">
       <nav className="mb-8">
-        <Link href="/" className="text-sm text-black/60 hover:underline dark:text-white/60">
+        <Link href={`/${locale}`} className="text-sm text-black/60 hover:underline dark:text-white/60">
           ← All articles
         </Link>
       </nav>
@@ -51,7 +59,7 @@ export default async function ArticlePage({ params }: PageProps<'/articles/[slug
         <header>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-black/50 dark:text-white/50">
             <span className="rounded-full border border-black/15 px-2 py-0.5 dark:border-white/20">
-              {categoryLabel(article.category, 'en')}
+              {categoryLabel(article.category, locale)}
             </span>
             {published ? <time dateTime={article.published_at!}>{published}</time> : null}
           </div>
@@ -69,7 +77,7 @@ export default async function ArticlePage({ params }: PageProps<'/articles/[slug
         {article.followUpOf ? (
           <p className="mt-6 rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/15">
             <span className="text-black/50 dark:text-white/50">Follows </span>
-            <Link href={`/articles/${article.followUpOf.slug}`} className="hover:underline">
+            <Link href={`/${locale}/articles/${article.followUpOf.slug}`} className="hover:underline">
               {article.followUpOf.title}
             </Link>
           </p>
@@ -140,7 +148,7 @@ export default async function ArticlePage({ params }: PageProps<'/articles/[slug
           <ul className="mt-3 flex flex-col gap-2">
             {article.followedBy.map((later) => (
               <li key={later.slug} className="text-sm">
-                <Link href={`/articles/${later.slug}`} className="hover:underline">
+                <Link href={`/${locale}/articles/${later.slug}`} className="hover:underline">
                   {later.title}
                 </Link>
               </li>
@@ -152,7 +160,7 @@ export default async function ArticlePage({ params }: PageProps<'/articles/[slug
       <ArticleFeedback
         articleId={article.id}
         styleGuideVersion={article.style_guide_version}
-        locale="en"
+        locale={locale}
       />
     </div>
   );

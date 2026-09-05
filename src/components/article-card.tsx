@@ -2,22 +2,25 @@ import Link from 'next/link';
 
 import { categoryLabel } from '@/config/categories';
 
+import type { Locale } from '@/config/locales';
 import type { ArticleListItem } from '@/db/published-articles';
 
 /** 목록의 기사 한 건. 커버 이미지는 Phase 5에서 붙는다 */
-export function ArticleCard({ article }: { article: ArticleListItem }) {
+export function ArticleCard({ article, locale }: { article: ArticleListItem; locale: Locale }) {
   const published = article.published_at
-    ? new Date(article.published_at).toLocaleDateString('en-CA', {
+    ? // 두 언어 모두 같은 형식(2026-09-05)을 쓴다. 발행 시각은 사실이지
+      // 문체가 아니고, 목록에서 날짜 형식이 언어마다 달라지면 정렬이 읽히지 않는다
+      new Date(article.published_at).toLocaleDateString('en-CA', {
         timeZone: 'America/Los_Angeles',
       })
     : null;
 
   return (
     <article className="border-b border-black/10 py-5 last:border-0 dark:border-white/10">
-      <Link href={`/articles/${article.slug}`} className="group block">
+      <Link href={`/${locale}/articles/${article.slug}`} className="group block">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-black/50 dark:text-white/50">
           <span className="rounded-full border border-black/15 px-2 py-0.5 dark:border-white/20">
-            {categoryLabel(article.category, 'en')}
+            {categoryLabel(article.category, locale)}
           </span>
           {published ? <time dateTime={article.published_at!}>{published}</time> : null}
         </div>

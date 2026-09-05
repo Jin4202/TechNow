@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { budget } from '@/config/budget';
+import { categoryLabel, CATEGORIES } from '@/config/categories';
+import { DEFAULT_LOCALE, LOCALES } from '@/config/locales';
 import { MODEL_HAIKU, MODEL_SONNET, models, sourceReadingModels } from '@/config/models';
 import { ALL_ASSETS, requiredAssets } from '@/config/required-assets';
 import { thresholds } from '@/config/thresholds';
+import { Constants } from '@/db/types';
 
 /**
  * config 값이 docs/DECISIONS.md 와 어긋나지 않는지 지킨다.
@@ -99,5 +102,27 @@ describe('required assets', () => {
 
   it('영문 본문은 어느 Phase에서든 필수다', () => {
     expect(requiredAssets).toContain('english_body');
+  });
+});
+
+describe('locales (D-08)', () => {
+  it('지원 언어는 en / ko 이고 기본값은 영어다', () => {
+    expect(LOCALES).toEqual(['en', 'ko']);
+    // 영어가 원본이고 품질 기준이다 (기획서 §0). 번역이 없어도 영어는 항상 있다
+    expect(DEFAULT_LOCALE).toBe('en');
+  });
+
+  it('DB 의 locale enum 과 목록이 같다', () => {
+    // 여기가 어긋나면 앱이 만드는 경로와 DB 가 받는 값이 갈린다.
+    // article_translations.locale, profiles.locale 이 이 enum 을 쓴다
+    expect([...LOCALES]).toEqual(Constants.public.Enums.locale);
+  });
+
+  it('카테고리 라벨이 모든 언어를 갖는다', () => {
+    for (const locale of LOCALES) {
+      for (const category of CATEGORIES) {
+        expect(categoryLabel(category.value, locale)).toBeTruthy();
+      }
+    }
   });
 });
