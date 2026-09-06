@@ -25,6 +25,14 @@
     "laterCoverage": "Later coverage",
     "tier": "Tier {tier}"
   },
+  "scraps": {
+    "scrap": "Save",
+    "unscrap": "Saved",
+    "loginToScrap": "Log in to save",
+    "folder": "Saved articles",
+    "empty": "Nothing saved yet.",
+    "savedOn": "Saved {date}"
+  },
   "feedback": {
     "question": "Was this easy to follow?",
     "yes": "Yes",

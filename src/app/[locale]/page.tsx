@@ -48,6 +48,15 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
 
           {user ? (
             <Link
+              href={`/${locale}/scraps`}
+              className="text-sm text-black/60 hover:underline dark:text-white/60"
+            >
+              {t('scraps.folder')}
+            </Link>
+          ) : null}
+
+          {user ? (
+            <Link
               href={`/${locale}/profile`}
               className="text-sm text-black/60 hover:underline dark:text-white/60"
             >

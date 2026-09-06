@@ -25,6 +25,14 @@
     "laterCoverage": "이후 기사",
     "tier": "Tier {tier}"
   },
+  "scraps": {
+    "scrap": "스크랩",
+    "unscrap": "스크랩됨",
+    "loginToScrap": "로그인하고 스크랩",
+    "folder": "스크랩",
+    "empty": "아직 스크랩한 기사가 없습니다.",
+    "savedOn": "{date} 저장"
+  },
   "feedback": {
     "question": "이해하기 쉬웠나요?",
     "yes": "네",

@@ -1,6 +1,7 @@
 'use server';
 
 import { recordFeedback, type FeedbackOutcome } from '@/db/article-feedback';
+import { toggleScrap, type ScrapOutcome } from '@/db/scraps';
 import { createClient } from '@/db/supabase/server';
 
 import type { Locale } from '@/config/locales';
@@ -26,4 +27,21 @@ export async function submitFeedback(input: {
   const supabase = await createClient();
   const outcome = await recordFeedback(supabase, input);
   return { outcome };
+}
+
+/**
+ * 스크랩 토글 (로드맵 6.1).
+ *
+ * 로그인이 필요하다 (기획서 §2.7). 로그인하지 않았으면 던지지 않고
+ * `not-logged-in` 을 돌려준다 — 버튼이 로그인 안내로 바뀌면 되고,
+ * 예외로 만들면 화면이 통째로 에러 경계로 넘어간다.
+ *
+ * `revalidatePath` 는 하지 않는다. 버튼 상태는 클라이언트가 들고 있고,
+ * 스크랩 여부는 페이지의 다른 내용에 영향을 주지 않는다
+ */
+export async function toggleScrapAction(articleId: string): Promise<{ outcome: ScrapOutcome }> {
+  if (!/^[0-9a-f-]{36}$/i.test(articleId)) return { outcome: 'not-found' };
+
+  const supabase = await createClient();
+  return { outcome: await toggleScrap(supabase, articleId) };
 }

@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { ArticleFeedback } from '@/components/article-feedback';
+import { ScrapButton } from '@/components/scrap-button';
 import { categoryLabel } from '@/config/categories';
 import { toLocale } from '@/config/locales';
 import { availableLocales, getPublishedArticle } from '@/db/published-articles';
+import { isScrapped } from '@/db/scraps';
 import { createClient } from '@/db/supabase/server';
 
 /**
@@ -49,6 +51,14 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
 
   if (!article) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 로그인하지 않았으면 묻지 않는다. `scraps` 는 anon 에게 권한이 없어
+  // 조회 자체가 permission denied 로 떨어진다 — 기사 화면이 통째로 죽는다
+  const scrapped = user ? await isScrapped(supabase, article.id, user.id) : false;
+
   const published = article.published_at
     ? new Date(article.published_at).toLocaleDateString('en-CA', {
         timeZone: 'America/Los_Angeles',
@@ -79,6 +89,15 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
           <p className="mt-3 text-base text-black/70 dark:text-white/70">
             {article.one_line_summary}
           </p>
+
+          <div className="mt-4">
+            <ScrapButton
+              articleId={article.id}
+              locale={locale}
+              initiallyScrapped={scrapped}
+              loggedIn={user !== null}
+            />
+          </div>
         </header>
 
         {/* 커버는 장식이라 alt 를 비운다 (5.6). 제목과 요약 다음에 온다 —
