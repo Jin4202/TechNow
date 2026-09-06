@@ -18,6 +18,9 @@ import type { WrittenArticle } from './write-article';
  * 판단할 근거를 만드는 것이 목적이다.
  *
  * 계산 지표는 형식을 재지만 "설명이 통하는가"는 재지 못한다. 그 부분을 맡는다.
+ *
+ * **판정 모델은 Sonnet 이다** (D-47). Haiku 로 Sonnet 의 글을 심사하면 계기가
+ * 잡음원이 된다 — 이 점수로 프롬프트 채택을 결정하므로 계기를 먼저 맞춘다.
  */
 
 export interface JudgeResult {
@@ -32,7 +35,7 @@ export async function judgeArticle(
 ): Promise<JudgeResult> {
   try {
     const response = await claude.messages.parse({
-      model: models.extractClaims, // Haiku. 기사만 읽으므로 출처 캐시와 무관하다
+      model: models.judge, // Sonnet. 개발 전용이라 파이프라인 비용과 무관하다 (D-47)
       max_tokens: 4000,
       system: JUDGE_SYSTEM,
       messages: [

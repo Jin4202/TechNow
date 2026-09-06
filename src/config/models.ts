@@ -66,6 +66,16 @@ export const otherModels = {
   coverConcept: MODEL_SONNET,
   /** 월간 스크랩 요약 */
   monthlySummary: MODEL_SONNET,
+  /**
+   * 루브릭 판정 (`pnpm evaluate`). **개발 전용 — 파이프라인에 없다.**
+   *
+   * Haiku 였는데 Sonnet 으로 바꿨다 (D-47). Haiku 가 Sonnet 의 글을 심사하는
+   * 구조라 측정 도구 자체가 잡음원이었다. 이 점수로 프롬프트 채택을 결정할
+   * 것이므로 계기를 먼저 정확히 만든다.
+   *
+   * 파이프라인 비용에 영향이 없다 — 평가 1회 14건이 약 $0.05 다.
+   */
+  judge: MODEL_SONNET,
 } as const;
 
 export const models = { ...sourceReadingModels, ...otherModels } as const;
