@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -79,6 +80,21 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
             {article.one_line_summary}
           </p>
         </header>
+
+        {/* 커버는 장식이라 alt 를 비운다 (5.6). 제목과 요약 다음에 온다 —
+            무슨 일인지 먼저 읽고 그림을 본다 */}
+        {article.cover_image_url ? (
+          <div className="relative mt-6 aspect-[16/9] overflow-hidden rounded-lg bg-black/5 dark:bg-white/5">
+            <Image
+              src={article.cover_image_url}
+              alt=""
+              fill
+              priority
+              sizes="(max-width: 672px) 100vw, 672px"
+              className="object-cover"
+            />
+          </div>
+        ) : null}
 
         {/* 이전 기사가 있으면 먼저 알린다. 맥락 없이 후속을 읽으면 이해가 안 된다 */}
         {article.followUpOf ? (
