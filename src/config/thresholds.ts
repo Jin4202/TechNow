@@ -84,6 +84,20 @@ export const thresholds = {
   scoringConcurrency: 4,
 
   /**
+   * 근거 검증에 실패했을 때 **기사 전체를 다시 쓸지, 지적된 문장만 고칠지**.
+   *
+   * 기본은 지적된 문장만 고치는 쪽(false)이다. 전체 재작성은 비싸고
+   * (출력 토큰이 변동비의 68%), 이미 통과한 문장까지 다시 굴려 새로 깨뜨린다.
+   *
+   * env 로 둔 이유는 **비교 측정을 위해서다** — 같은 fixture 로 양쪽을 돌려
+   * 통과율과 비용을 재고 나서 판단한다 (D-27 의 교훈: 추측으로 바꾸지 않는다).
+   * env: TECHNOW_FULL_REWRITE
+   */
+  get fullRewriteOnGroundingFailure() {
+    return process.env.TECHNOW_FULL_REWRITE === '1';
+  },
+
+  /**
    * 번역본이 한국어인지 판정하는 최소 한글 비율 (4.3a).
    *
    * 구조 검증만으로는 모델이 영문을 그대로 돌려주는 실패를 못 잡는다 —

@@ -27,6 +27,10 @@ export interface RunTopicRow {
   reject_reason: string | null;
   rank: number | null;
   article_id: string | null;
+  /** 기사 생성 실패 종류. 선정됐지만 기사가 안 나온 경우에만 */
+  build_failure: string | null;
+  /** 실패 상세. "근거 없음 1건" 처럼 무엇이 몇 건인지 */
+  build_detail: string | null;
 }
 
 export async function insertRunTopics(

@@ -283,16 +283,14 @@ export async function runDailyDiscovery(
         rescored: firstPassTotals.has(index),
         first_pass_score: firstPassTotals.get(index) ?? null,
         rescore_skip_reason: rescoreSkips.get(index) ?? null,
-        selected: articleId !== null,
-        reject_reason: articleId
-          ? null
-          : buildFailure
-            ? `build:${buildFailure.failure}`
-            : entry
-              ? entry.reason
-              : 'unscored',
+        // 선정은 "생성을 시도했다" 는 뜻이다. 실패해도 선정된 것이다 —
+        // 여기를 articleId 로 판단하면 실제 시도 횟수가 로그에서 사라진다
+        selected: articleId !== null || buildFailure !== undefined,
+        reject_reason: articleId || buildFailure ? null : entry ? entry.reason : 'unscored',
         rank: entry?.rank ?? null,
         article_id: articleId,
+        build_failure: buildFailure?.failure ?? null,
+        build_detail: buildFailure?.detail ?? null,
       };
     });
     await insertRunTopics(db, runId, rows);

@@ -9,6 +9,7 @@ import {
   GROUNDED_SYSTEM,
   type PromptSource,
 } from '@/prompts/grounded-steps';
+import { buildRepairInstructions } from '@/prompts/repair-article';
 import { buildWriteInstructions, DraftArticleSchema } from '@/prompts/write-article';
 
 /**
@@ -178,4 +179,46 @@ export function sentenceStats(article: WrittenArticle): SentenceStats {
     longest: lengths.length === 0 ? 0 : Math.max(...lengths),
     overLimit: sentences.filter((_, i) => lengths[i]! > 40),
   };
+}
+
+/**
+ * 근거 없는 진술만 고친다 (전체 재작성의 대안).
+ *
+ * `writeArticle` 과 **같은 캐시 프리픽스**를 쓴다 — 출처 블록이 앞이고 지시문이
+ * 뒤다 (D-06). 모델도 `rewrite` 그대로다. 프리픽스를 공유해야 12k 짜리 출처
+ * 블록을 캐시에서 읽는다.
+ *
+ * 재작성과 다른 점은 **지시문**뿐이다: 기사를 다시 쓰는 대신 지적된 문장만
+ * 고치고 나머지는 그대로 돌려주라고 한다.
+ */
+export async function repairArticle(
+  claude: AnthropicClient,
+  article: WrittenArticle,
+  sources: readonly PromptSource[],
+  unsupported: readonly { text: string; note: string }[],
+): Promise<WriteResult> {
+  const response = await claude.messages.parse({
+    model: models.rewrite,
+    max_tokens: 8000,
+    system: GROUNDED_SYSTEM,
+    messages: buildGroundedMessages(
+      buildSourceBlock(sources),
+      buildRepairInstructions(article, unsupported),
+    ),
+    output_config: {
+      format: zodOutputFormat(DraftArticleSchema),
+      effort: EFFORT.rewrite,
+    },
+  });
+
+  const usage = readUsage(response.usage);
+  const validated = validateDraft(
+    response.parsed_output,
+    sources.map((s) => s.ordinal),
+  );
+
+  if ('failure' in validated) {
+    return { article: null, failure: validated.failure, detail: validated.detail, usage };
+  }
+  return { article: validated.article, failure: null, usage };
 }

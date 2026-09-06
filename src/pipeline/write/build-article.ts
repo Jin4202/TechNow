@@ -1,14 +1,26 @@
 import { addUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { budget } from '@/config/budget';
+import { thresholds } from '@/config/thresholds';
 import { buildRetryNote, verifyArticle, type VerificationResult } from '@/pipeline/verify/verify-claims';
-import { writeArticle, type WriteFailure, type WrittenArticle } from '@/pipeline/write/write-article';
+import {
+  repairArticle,
+  writeArticle,
+  type WriteFailure,
+  type WriteResult,
+  type WrittenArticle,
+} from '@/pipeline/write/write-article';
 
 import type { PromptSource } from '@/prompts/grounded-steps';
 
 /**
  * 출처에서 기사 하나를 만들어 낸다 (로드맵 3.9, 3.10).
  *
- * 작성 → 검증 → (실패 시) 사유를 붙여 1회 재작성 → 재검증 → 그래도 실패하면 skip.
+ * 작성 → 검증 → (실패 시) 1회 수정 → 재검증 → 그래도 실패하면 skip.
+ *
+ * **수정은 기사 전체를 다시 쓰는 것이 아니라 지적된 문장만 고치는 것이다.**
+ * 실측에서 실패한 건들이 "근거 없음 1건" 처럼 아슬아슬했는데, 전체 재작성은
+ * 이미 통과한 문장까지 다시 굴려 고치려다 새로 깨뜨렸다.
+ * `TECHNOW_FULL_REWRITE=1` 로 옛 방식(전체 재작성)을 켤 수 있다 — 비교 측정용이다.
  *
  * **근거 검증을 통과하지 못한 기사는 발행하지 않는다.** 완화하는 방향의 수정은
  * 하지 않는다 (CLAUDE.md §2.5). 기사 수가 줄어드는 건 의도된 비용이다.
@@ -92,9 +104,27 @@ export async function buildArticle(
   let lastVerification: VerificationResult | null = null;
   let lastWriteFailure: WriteFailure | null = null;
   let lastDetail: string | undefined;
+  /** 직전 시도의 기사. 있으면 전체 재작성 대신 이것을 고친다 */
+  let previous: WrittenArticle | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const written = await writeArticle(claude, input.topicTitle, input.sources, retryNote);
+    // 근거 없는 진술만 지적된 상황이면 그 문장만 고친다.
+    // 규격 위반(write-failed)은 고칠 기사가 온전하지 않으므로 다시 쓴다
+    const repairable: boolean =
+      previous !== null &&
+      lastVerification !== null &&
+      lastVerification.unsupported.length > 0 &&
+      !thresholds.fullRewriteOnGroundingFailure;
+
+    const written: WriteResult = repairable
+      ? await repairArticle(
+          claude,
+          previous!,
+          input.sources,
+          lastVerification!.unsupported.map((c) => ({ text: c.claim.text, note: c.note })),
+        )
+      : await writeArticle(claude, input.topicTitle, input.sources, retryNote);
+
     usage = addUsage(usage, written.usage);
 
     if (!written.article) {
@@ -104,6 +134,8 @@ export async function buildArticle(
       retryNote = `The draft was rejected: ${written.failure} (${written.detail ?? ''}).`;
       continue;
     }
+
+    previous = written.article;
 
     const verification = await verifyArticle(claude, written.article, input.sources);
     usage = addUsage(usage, verification.usage);

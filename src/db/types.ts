@@ -373,6 +373,8 @@ export type Database = {
       run_topics: {
         Row: {
           article_id: string | null
+          build_detail: string | null
+          build_failure: string | null
           created_at: string
           feed_names: string[]
           first_pass_score: number | null
@@ -397,6 +399,8 @@ export type Database = {
         }
         Insert: {
           article_id?: string | null
+          build_detail?: string | null
+          build_failure?: string | null
           created_at?: string
           feed_names?: string[]
           first_pass_score?: number | null
@@ -421,6 +425,8 @@ export type Database = {
         }
         Update: {
           article_id?: string | null
+          build_detail?: string | null
+          build_failure?: string | null
           created_at?: string
           feed_names?: string[]
           first_pass_score?: number | null
