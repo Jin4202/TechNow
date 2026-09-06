@@ -2,7 +2,15 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { getAnthropic, estimateCost } from '@/clients/anthropic';
 import { FalClient, IMAGE_MODELS, IMAGE_PRICING, type ImageModel } from '@/clients/fal';
+import {
+  CACHE_READ_MULTIPLIER,
+  CACHE_WRITE_MULTIPLIER,
+  MODEL_SONNET,
+  PRICING,
+} from '@/config/models';
+import { chooseCoverConcept } from '@/pipeline/illustrate/choose-concept';
 import { buildCoverPrompt } from '@/prompts/cover-image';
 
 import type { WrittenArticle } from '@/pipeline/write/write-article';
@@ -64,6 +72,7 @@ describe('커버 이미지 비교 (5.1)', () => {
       expect(targets.length, 'out/articles.json 이 비어 있다').toBeGreaterThan(0);
 
       const fal = new FalClient();
+      const claude = getAnthropic();
       mkdirSync('out/covers', { recursive: true });
 
       const rows: string[] = [
@@ -71,12 +80,14 @@ describe('커버 이미지 비교 (5.1)', () => {
         '',
         `모델 2종 × 기사 ${targets.length}편. 같은 프롬프트다.`,
         '',
-        '**보는 법**: 같은 줄의 두 이미지가 같은 프롬프트의 결과다. 볼 것은',
+        '**보는 법**: 볼 것은',
         '',
         '1. **한 줄로 놓았을 때 같은 사이트처럼 보이나.** 장당 품질보다 이게 중요하다',
         '2. **글자가 들어갔나.** 잘못 쓴 글자가 박힌 커버는 없느니만 못하다',
-        '3. **사람·로고가 나왔나.** 나왔으면 프롬프트가 아니라 필터를 고쳐야 한다',
+        '3. **얼굴이 나왔나.** 실루엣·뒷모습은 괜찮고 얼굴은 안 된다 (D-38)',
         '4. **기사와 관련이 있나.** 아무 추상 도형이나 나오면 커버의 값이 없다',
+        '',
+        '`mode` 는 Claude 가 고른 그림의 유형이다 — subject(사물) / scene(비유) / future(영향력).',
         '',
         MODELS.map((m) => `\`${m}\` 장당 $${IMAGE_PRICING[m] ?? '?'}`).join(' · '),
         '',
@@ -90,7 +101,23 @@ describe('커버 이미지 비교 (5.1)', () => {
       const failures: string[] = [];
 
       for (const entry of targets) {
-        const prompt = buildCoverPrompt(entry.article.title, entry.article.oneLineSummary);
+        // 무엇을 그릴지 먼저 정한다 (D-38). 이미지 모델은 기사를 읽지 않았다
+        const chosen = await chooseCoverConcept(claude, entry.article);
+        cost += estimateCost(chosen.usage, PRICING[MODEL_SONNET], {
+          cacheRead: CACHE_READ_MULTIPLIER,
+          cacheWrite: CACHE_WRITE_MULTIPLIER,
+        });
+
+        if (!chosen.concept) {
+          failures.push(`${entry.slug} concept: ${chosen.failure} ${chosen.detail ?? ''}`);
+          rows.push(`| **${entry.article.title}** | 장면 선택 실패 — ${chosen.failure} |`);
+          continue;
+        }
+
+        const { mode, scene, rationale } = chosen.concept;
+        console.log(`\n${entry.slug} [${mode}] ${scene}`);
+
+        const prompt = buildCoverPrompt(scene);
         const cells: string[] = [];
 
         for (const model of MODELS) {
@@ -113,7 +140,9 @@ describe('커버 이미지 비교 (5.1)', () => {
         }
 
         rows.push(
-          `| **${entry.article.title}**<br><sub>${prompt.slice(-120)}</sub> | ${cells.join(' | ')} |`,
+          `| **${entry.article.title}**<br>` +
+            `<sub>**[${mode}]** ${scene}</sub><br>` +
+            `<sub>왜: ${rationale}</sub> | ${cells.join(' | ')} |`,
         );
       }
 

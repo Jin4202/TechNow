@@ -18,8 +18,8 @@
  * 선택의 이유:
  *   - **텍스트 없음**: Flux schnell 은 글자를 제대로 못 쓴다. 잘못 쓴 글자가
  *     박힌 커버는 없느니만 못하다 (기획서 §7 — "no text rendering needed for covers")
- *   - **사람 없음**: 실존 인물 금지(CLAUDE.md §5)를 지키는 가장 확실한 방법은
- *     사람을 아예 그리지 않는 것이다. "가상의 인물" 은 실존 인물을 닮게 나온다
+ *   - **얼굴 없음**: 실존 인물 금지(CLAUDE.md §5)의 위험은 얼굴에서 온다.
+ *     실루엣·뒷모습·상체는 누구도 닮지 않는다 (D-38)
  *   - **사진이 아닌 일러스트**: 사진처럼 보이는 이미지는 실제 사건의 사진으로
  *     오해된다. 우리 기사에는 실제 사진이 없다
  */
@@ -29,11 +29,13 @@ export const STYLE_PREFIX = [
   // 배경색을 못 박는다. 1차 실측에서 "muted palette" 만으로는 크림색 배경이 나왔고,
   // 목록에 카드가 나란히 놓이면 한 장만 밝은 것이 바로 눈에 띈다
   'Deep navy background (#1e293b), slate grey shapes, one warm amber accent.',
-  // "generous negative space" 를 뺐다. 그 말이 있는 쪽에서 주제 없이
-  // 색면만 둘 있는 이미지가 나왔다 — 커버가 기사를 가리키지 못한다
-  'One clear subject object, centred, filling about half the frame.',
+  // "하나의 사물" 을 요구하면 비유·미래 장면(D-38 의 2·3번)을 그릴 수 없다.
+  // 화면이 산만해지는 것만 막는다
+  'A single clear focal point.',
   'No text, no letters, no numbers, no logos, no watermarks.',
-  'No people, no faces, no hands.',
+  // 실존 인물 위험은 얼굴에서 온다 (CLAUDE.md §5). 얼굴이 없으면 사람이 있어도 된다 —
+  // "이 연구가 삶을 어떻게 바꾸나" 를 사람 없이 그리기는 어렵다
+  'No faces. Figures may appear as flat silhouettes, seen from behind, or cropped below the face.',
   'Not photorealistic. No 3D render, no shading gradients, no lens flare, no stock-photo look.',
 ].join(' ');
 
@@ -50,13 +52,13 @@ const BRAND_HINTS =
 const NAME_LIKE = /\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b/g;
 
 /**
- * 고유명사를 지운 주제 문장.
+ * 고유명사를 지운다.
  *
  * 지우기만 하고 대체하지 않는다. "Google 이 발표한 양자 칩" 에서 Google 을 빼면
  * "양자 칩" 이 남고, 그것이 그림에 필요한 전부다.
  */
-export function subjectLine(title: string, oneLineSummary: string): string {
-  return `${title}. ${oneLineSummary}`
+export function stripProperNouns(text: string): string {
+  return text
     .replace(BRAND_HINTS, '')
     .replace(NAME_LIKE, '')
     .replace(/["'“”‘’]/g, '')
@@ -70,12 +72,16 @@ export function subjectLine(title: string, oneLineSummary: string): string {
 /**
  * 최종 프롬프트.
  *
- * 순서가 중요하다: 스타일이 먼저, 주제가 나중이다. 이미지 모델은 앞쪽 토큰에
- * 더 크게 반응하므로, 주제를 앞에 두면 기사마다 화풍이 흔들린다.
+ * 장면은 기사를 읽은 쪽이 고른다 (`chooseCoverConcept`, D-38). 여기서는
+ * 그 장면에 화풍을 입힐 뿐이다 — 기사 제목을 이미지 모델에 넘기던 방식은
+ * 개념 기사에서 색면을 냈다 (D-37).
+ *
+ * 순서가 중요하다: 스타일이 먼저, 장면이 나중이다. 이미지 모델은 앞쪽 토큰에
+ * 더 크게 반응하므로, 장면을 앞에 두면 기사마다 화풍이 흔들린다.
+ *
+ * 장면 설명에도 `subjectLine` 의 필터를 건다. 고유명사를 쓰지 말라고 지시했지만
+ * 지시는 압력이지 보장이 아니다 (D-27).
  */
-export function buildCoverPrompt(title: string, oneLineSummary: string): string {
-  const subject = subjectLine(title, oneLineSummary);
-  // "Draw the object" 로 끝맺는다. 주제 문장만 붙이면 모델이 그것을 분위기로
-  // 해석하고 색면만 그린다 — 1차 실측에서 실제로 그랬다
-  return `${STYLE_PREFIX} Draw the single object at the centre of this story: ${subject}`;
+export function buildCoverPrompt(scene: string): string {
+  return `${STYLE_PREFIX} ${stripProperNouns(scene)}`;
 }

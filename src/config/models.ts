@@ -56,6 +56,14 @@ export const otherModels = {
   generateQueries: MODEL_HAIKU,
   /** 영문 기사 → 한국어 */
   translate: MODEL_SONNET,
+  /**
+   * 커버에 무엇을 그릴지 고르기 (D-38).
+   *
+   * Haiku 가 아닌 이유: 이 단계가 커버 품질을 사실상 결정한다.
+   * 비유를 고르는 것은 요약이 아니라 판단이고, 그림 모델은 기사를 읽지 않았다.
+   * 기사당 차액은 약 $0.003 인데 실패하면 커버가 색면이 된다 (D-37)
+   */
+  coverConcept: MODEL_SONNET,
   /** 월간 스크랩 요약 */
   monthlySummary: MODEL_SONNET,
 } as const;
@@ -94,6 +102,7 @@ export const EFFORT = {
   extractClaims: 'medium',
   verifyClaims: 'high',
   translate: 'medium',
+  coverConcept: 'medium',
   monthlySummary: 'medium',
 } as const;
 
