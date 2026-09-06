@@ -69,7 +69,39 @@ function countFrom(output: string): number {
   return Number(numeric[0]);
 }
 
+/**
+ * 테스트 사용자를 만든다 (비밀번호 없음).
+ *
+ * `supabase db reset` 이 auth.users 를 비우므로 테스트가 스스로 준비해야 한다 —
+ * 전에는 없는 상태에서 스크랩 insert 가 조용히 실패해 엉뚱한 검사가 깨졌다.
+ *
+ * **로그인할 수 있는 계정이 아니다.** 이 검사는 정책을 보는 것이고 로그인을
+ * 하지 않는다. FK 를 채울 행만 있으면 된다.
+ */
+function ensureTestUsers(): void {
+  const values = [USER_A, USER_B]
+    .map(
+      (id) =>
+        `('${id}', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'isolation-${id.slice(-1)}@local.test', now(), now())`,
+    )
+    .join(',');
+
+  const result = spawnSync(
+    'docker',
+    ['exec', '-i', 'supabase_db_TechNow', 'psql', '-U', 'postgres', '-d', 'postgres', '-t', '-A'],
+    {
+      input: `insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
+              values ${values} on conflict (id) do nothing;`,
+      encoding: 'utf8',
+    },
+  );
+
+  expect(result.stderr, `테스트 사용자 생성 실패: ${result.stderr}`).not.toContain('ERROR');
+}
+
 beforeAll(async () => {
+  ensureTestUsers();
+
   // 발행 전 기사 하나. 익명에게 절대 보이면 안 되는 것의 대표다
   await service.from('articles').upsert({
     id: DRAFT_ID,
@@ -92,7 +124,12 @@ beforeAll(async () => {
   expect(published?.length, '발행된 기사가 없어 스크랩 격리를 볼 수 없다').toBeGreaterThan(0);
 
   await service.from('scraps').delete().in('user_id', [USER_A, USER_B]);
-  await service.from('scraps').insert({ user_id: USER_A, article_id: published![0]!.id });
+
+  // 조용히 실패하면 아래 검사들이 엉뚱한 이유로 깨진다
+  const { error } = await service
+    .from('scraps')
+    .insert({ user_id: USER_A, article_id: published![0]!.id });
+  expect(error, `스크랩 준비 실패: ${error?.message}`).toBeNull();
 });
 
 afterAll(async () => {
@@ -115,6 +152,18 @@ describe('익명 접근 (7.6a)', () => {
     const { data } = await anon.from('articles').select('id').eq('id', DRAFT_ID).maybeSingle();
 
     expect(data).toBeNull();
+  });
+
+  it('아카이브 월 집계도 발행된 기사만 센다 (7.8)', async () => {
+    // article_months() 가 security definer 였다면 draft 까지 세어져
+    // 편수만 보고도 발행 전 기사가 몇 건인지 알 수 있다
+    const { data, error } = await anon.rpc('article_months');
+    expect(error).toBeNull();
+
+    const counted = (data ?? []).reduce((sum, row) => sum + Number(row.article_count), 0);
+    const { data: visible } = await anon.from('articles').select('id');
+
+    expect(counted, '집계가 익명에게 보이는 기사 수와 다르다').toBe(visible!.length);
   });
 
   it('발행된 기사의 출처와 번역만 보인다', async () => {

@@ -28,11 +28,62 @@ export interface ArticleListItem {
   published_at: string | null;
 }
 
-/** 목록 좁히기 (7.3). 없으면 전체 */
+/** 목록 좁히기 (7.3, 7.8). 없으면 전체 */
 export interface ArticleFilter {
   category?: Category;
   tag?: string;
+  /** `YYYY-MM`. 그달 1일 00:00 PT ~ 다음달 1일 00:00 PT (7.8) */
+  month?: string;
   limit?: number;
+}
+
+/**
+ * 발행 기준 시간대.
+ *
+ * 발행이 07:00 America/Los_Angeles 로 돈다 (D-04). 독자가 보는 "9월 기사" 는
+ * 그 리듬을 따라야 한다 — UTC 로 자르면 PT 로 8월 31일 저녁에 발행된 기사가
+ * 9월로 넘어간다.
+ */
+const PUBLISH_TIME_ZONE = 'America/Los_Angeles';
+
+/**
+ * `YYYY-MM` 을 UTC 구간으로 바꾼다. 형식이 아니면 `null`.
+ *
+ * `src/db/monthly-scraps.ts` 에도 `monthRange` 가 있지만 **그쪽은 UTC 다.**
+ * 월간 요약은 사용자별 집계라 표시용 달과 목적이 다르다. 같은 이름의 다른 규칙을
+ * 한 함수로 합치면 나중에 둘 중 하나가 조용히 틀린다.
+ */
+export function publishMonthRange(month: string): { from: string; to: string } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return null;
+
+  return {
+    from: startOfMonthUtc(year, monthIndex),
+    to: startOfMonthUtc(year, monthIndex + 1),
+  };
+}
+
+/**
+ * 그 달 1일 00:00 (PT) 를 UTC ISO 로.
+ *
+ * PT 는 서머타임에 따라 UTC-7 / UTC-8 로 오간다. 오프셋을 상수로 박으면
+ * 3월과 11월 경계가 한 시간씩 틀린다 — `Intl` 이 그 달의 실제 오프셋을 알고 있으므로
+ * 그것으로 역산한다.
+ */
+function startOfMonthUtc(year: number, monthIndex: number): string {
+  const naive = Date.UTC(year + Math.floor(monthIndex / 12), monthIndex % 12, 1, 0, 0, 0);
+
+  // naive 를 PT 로 읽었을 때 몇 시인지 보고, 그 차이만큼 되돌린다
+  const asPt = new Date(
+    new Date(naive).toLocaleString('en-US', { timeZone: PUBLISH_TIME_ZONE }),
+  ).getTime();
+  const asUtc = new Date(new Date(naive).toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+
+  return new Date(naive + (asUtc - asPt)).toISOString();
 }
 
 export async function listPublishedArticles(
@@ -99,12 +150,50 @@ function applyFilter<T>(query: T, filter: ArticleFilter): T {
   let next = query as T & {
     eq: (column: string, value: string) => T;
     contains: (column: string, value: string[]) => T;
+    gte: (column: string, value: string) => T;
+    lt: (column: string, value: string) => T;
   };
 
   if (filter.category) next = next.eq('category', filter.category) as typeof next;
   if (filter.tag) next = next.contains('tags', [filter.tag]) as typeof next;
 
+  if (filter.month) {
+    const range = publishMonthRange(filter.month);
+    // 형식이 틀리면 조건을 걸지 않는다. 부르는 쪽(아카이브 페이지)이 이미
+    // 형식을 검사해 404 를 내므로, 여기까지 온 잘못된 값은 없어야 한다
+    if (range) {
+      next = next.gte('published_at', range.from) as typeof next;
+      next = next.lt('published_at', range.to) as typeof next;
+    }
+  }
+
   return next as T;
+}
+
+export interface ArchiveMonth {
+  /** `YYYY-MM` */
+  month: string;
+  articleCount: number;
+}
+
+/**
+ * 기사가 있는 달 목록 (7.8).
+ *
+ * 집계는 DB 함수가 한다 — PostgREST 는 group by 를 못 한다.
+ * 함수가 security definer 가 **아니므로** RLS 가 그대로 걸려 발행된 기사만 세어진다.
+ */
+export async function listArchiveMonths(
+  db: SupabaseClient<Database>,
+): Promise<ArchiveMonth[]> {
+  const { data, error } = await db.rpc('article_months');
+
+  if (error) throw new Error(`아카이브 월 목록 조회 실패: ${error.message}`);
+
+  return (data ?? []).map((row) => ({
+    // 함수는 date 를 돌려준다 (YYYY-MM-DD). 표시·링크에는 YYYY-MM 만 쓴다
+    month: String(row.month).slice(0, 7),
+    articleCount: Number(row.article_count),
+  }));
 }
 
 export interface ArticleSource {

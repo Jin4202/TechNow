@@ -64,6 +64,13 @@ export default async function Home({ params, searchParams }: PageProps<'/[locale
         <div className="flex items-center gap-3">
           <LocaleSwitcher current={locale} />
 
+          <Link
+            href={`/${locale}/archive`}
+            className="text-sm text-black/60 hover:underline dark:text-white/60"
+          >
+            {t('nav.archive')}
+          </Link>
+
           {profile?.premium ? (
             <Link
               href={`/${locale}/summary`}
@@ -127,6 +134,17 @@ export default async function Home({ params, searchParams }: PageProps<'/[locale
             ))}
           </div>
         )}
+
+        {/* 메인은 최신 30건에서 잘린다 (7.8). 그보다 이전 기사로 가는 길을
+            항상 보여준다 — 조건부로 나타나는 링크는 존재를 학습하지 못한다 */}
+        <div className="mt-8 border-t border-black/10 pt-6 dark:border-white/10">
+          <Link
+            href={`/${locale}/archive`}
+            className="text-sm text-black/60 hover:underline dark:text-white/60"
+          >
+            {t('home.olderArticles')}
+          </Link>
+        </div>
       </main>
     </div>
   );

@@ -584,6 +584,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      article_months: {
+        Args: never
+        Returns: {
+          article_count: number
+          month: string
+        }[]
+      }
       check_rate_limit: {
         Args: {
           p_bucket: string

@@ -5,13 +5,21 @@
   },
   "nav": {
     "allArticles": "← 전체 기사",
+    "archive": "지난 기사",
     "profile": "프로필",
     "logIn": "로그인",
     "logOut": "로그아웃"
   },
   "home": {
     "empty": "오늘은 새 기사가 없습니다",
-    "noMatch": "이 조건에 맞는 기사가 없습니다."
+    "noMatch": "이 조건에 맞는 기사가 없습니다.",
+    "olderArticles": "더 이전 기사 →"
+  },
+  "archive": {
+    "title": "지난 기사",
+    "articleCount": "{count}편",
+    "empty": "아직 발행된 기사가 없습니다.",
+    "emptyMonth": "이 달에는 발행된 기사가 없습니다."
   },
   "profile": {
     "title": "프로필",
