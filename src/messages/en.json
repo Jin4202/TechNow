@@ -33,6 +33,12 @@
     "empty": "Nothing saved yet.",
     "savedOn": "Saved {date}"
   },
+  "summary": {
+    "title": "Monthly review",
+    "empty": "Your first monthly review arrives on the 1st, covering the articles you saved.",
+    "month": "{month}",
+    "articleCount": "{count} saved"
+  },
   "feedback": {
     "question": "Was this easy to follow?",
     "yes": "Yes",

@@ -5,6 +5,7 @@ import { logout } from '@/app/[locale]/login/actions';
 import { ArticleCard } from '@/components/article-card';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { LOCALES, toLocale } from '@/config/locales';
+import { getProfile } from '@/db/profiles';
 import { listPublishedArticles } from '@/db/published-articles';
 import { createClient } from '@/db/supabase/server';
 
@@ -33,6 +34,10 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
     articles,
   ] = await Promise.all([supabase.auth.getUser(), listPublishedArticles(supabase, locale)]);
 
+  // 월간 요약은 premium 플래그로 가린다 (6.8). 기본값이 true 라 지금은 모두 보인다.
+  // 링크를 남겨두면 눌러서 404 를 만나게 되므로, 페이지의 404 와 함께 링크도 숨긴다
+  const profile = user ? await getProfile(supabase) : null;
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-5 py-10 sm:px-6 sm:py-16">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -45,6 +50,15 @@ export default async function Home({ params }: PageProps<'/[locale]'>) {
 
         <div className="flex items-center gap-3">
           <LocaleSwitcher current={locale} />
+
+          {profile?.premium ? (
+            <Link
+              href={`/${locale}/summary`}
+              className="text-sm text-black/60 hover:underline dark:text-white/60"
+            >
+              {t('summary.title')}
+            </Link>
+          ) : null}
 
           {user ? (
             <Link

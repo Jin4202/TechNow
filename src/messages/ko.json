@@ -33,6 +33,12 @@
     "empty": "아직 스크랩한 기사가 없습니다.",
     "savedOn": "{date} 저장"
   },
+  "summary": {
+    "title": "월간 요약",
+    "empty": "매월 1일에 지난달 스크랩을 모아 요약이 도착합니다.",
+    "month": "{month}",
+    "articleCount": "{count}건"
+  },
   "feedback": {
     "question": "이해하기 쉬웠나요?",
     "yes": "네",
