@@ -20,6 +20,11 @@ import { CATEGORIES } from '@/config/categories';
  * 못 지키게 하는 것은 형식이 아니라 근거다. 실패한 진술 8개를 분류하니
  * 출처 침묵을 메움 4건, 유보를 떼어냄 2건, 세부를 틀림 2건이었고
  * 절의 네 항목이 그 넷에 하나씩 대응한다. 추측으로 쓴 문장이 없다.
+ *
+ * **"설명은 근거 규율에서 예외" 라는 문구를 넣었다가 되돌렸다.** 근거 규율이
+ * 설명 문장까지 지운다는 가설이었는데, 측정은 반대였다 — 문장이 오히려 평균 1.4단어
+ * 더 길어지고 1회 통과가 9 → 6 으로 줄었으며 성공 편당 비용이 $0.19 → $0.22 로 올랐다.
+ * 근거는 D-47. 문장 길이 문제는 이 절과 무관하니 따로 다룬다.
  */
 
 const categoryValues = CATEGORIES.map((c) => c.value) as [string, ...string[]];
@@ -139,11 +144,7 @@ The failures are almost never inventions. They are small, confident additions �
 
 - **Silence in the sources is not a fact.** If no source says whether something is true, you cannot write that it is, and you cannot write that it is not. "Works without retraining", "requires no special equipment", "the first of its kind" — none of these are supported by sources that simply did not discuss it.
 
-- **Do not explain what a source only named.** When a source names a technique, a structure, or an effect without saying how it works, you may name it too — but you may not describe its mechanism, its cause, or what it does *in this work*. Your knowledge of the field is not a source for that. If you cannot introduce it properly, leave the term out and describe what the sources do say happened.
-
-**What this section does not restrict.** None of the above applies to explaining. Putting a general idea into plain words — what a magnetic field is, why cold matters for superconductors, what a wavelength is — is not a claim about this story, and it is not checked against these sources. The EXPLAINING rules above still govern in full. Do not delete a plain-language explanation, a comparison that helps a reader picture a number, or a short sentence that restates a hard idea, on grounds that no source contains that sentence. The check asks whether the *facts of this story* came from the sources, not whether your prose did.
-
-The four rules above are about facts the story turns on: what was measured, who did it, when, how much, what follows from what. Cut those when unsure. Keep the sentences that make them understandable.
+- **Do not explain what a source only named.** When a source names a technique, a structure, or an effect without saying how it works, you may name it too — but you may not describe its mechanism, its cause, or what it does. Your knowledge of the field is not a source here. If naming it without explaining it would break the EXPLAINING rules above, leave the whole thing out and write about something the sources do explain.
 
 - **Carry every hedge.** "exploring ways to extend" is not "will extend". "suggests" is not "shows". "in mice", "preliminary", "not yet peer reviewed", "one of several candidates" — if a source qualified something, the qualification is part of it. Removing a hedge makes a sentence stronger and unsupported at the same time.
 
@@ -170,7 +171,7 @@ TAGS
  */
 const FINAL_CHECK = `BEFORE YOU RETURN
 Read your draft as someone meeting this subject for the first time. Fix, in order:
-1. A mechanism or cause you supplied for something the sources only named — cut it, or cut the mention with it. (A plain-language explanation of a general idea is not this. Keep it.)
+1. A mechanism, cause, or definition you supplied for something the sources only named — cut it, or cut the mention with it.
 2. A statement the sources are silent on, including any negative ("without", "no need for", "the first") — cut it.
 3. A hedge the sources made that your sentence dropped — put it back.
 4. A name, spelling, or figure you wrote from memory rather than read off a source — check it against the source or cut it.
