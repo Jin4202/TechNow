@@ -1,17 +1,27 @@
-import { describe, expect, it } from 'vitest';
-
-import { fillAssets } from '@/pipeline/fill-assets';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { AnthropicClient } from '@/clients/anthropic';
 import type { FalClient } from '@/clients/fal';
 import type { ServiceClient } from '@/db/supabase/service';
 
 /**
- * 필수 자산 채우기 (로드맵 4.4, 4.6).
+ * 필수 자산 채우기 — 번역 (로드맵 4.4, 4.6).
  *
  * 확인하려는 것 하나: **번역이 실패하면 기사가 발행 대기로 올라가지 않는다.**
  * 여기가 뚫리면 한국어판 없는 기사가 그날 아침 발행에 섞여 들어간다.
+ *
+ * 자산 목록을 번역까지로 고정한다. 커버 이미지 경로는
+ * `fill-assets-cover.test.ts` 가 따로 본다 — 한 파일에서 둘을 섞으면
+ * 어느 자산 때문에 실패했는지 테스트가 말해주지 못한다.
  */
+
+vi.mock('@/config/required-assets', () => ({
+  requiredAssets: ['english_body', 'korean_translation'],
+  ALL_ASSETS: ['english_body', 'korean_translation', 'cover_image'],
+  STYLE_GUIDE_VERSION: 'test',
+}));
+
+const { fillAssets } = await import('@/pipeline/fill-assets');
 
 const article = {
   id: 'article-1',

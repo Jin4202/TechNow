@@ -133,6 +133,23 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
     }
   });
 
+  it('기사마다 커버 이미지가 생기고 우리 Storage 에서 서빙된다 (5.4, 5.5)', async () => {
+    const { data: articles } = await db.from('articles').select('id, slug, cover_image_url');
+
+    for (const article of articles!) {
+      expect(article.cover_image_url, `${article.slug} 에 커버가 없다`).not.toBeNull();
+      // fal 의 URL 을 그대로 저장하면 남의 서버에 의존하게 된다 (5.3)
+      expect(article.cover_image_url).toContain('/storage/v1/object/public/covers/');
+      // 파일 이름은 slug 가 아니라 기사 uuid 다 — 버킷이 공개다 (CLAUDE.md §5)
+      expect(article.cover_image_url).toContain(article.id);
+
+      const served = await fetch(article.cover_image_url!);
+      expect(served.status, '익명으로 커버를 못 읽는다').toBe(200);
+      expect(served.headers.get('content-type')).toContain('image');
+      console.log(`  커버 ${article.slug.slice(0, 40)} ${served.headers.get('content-length')} bytes`);
+    }
+  });
+
   it('번역이 없으면 발행되지 않고, 다음 런의 스윕이 되살린다 (4.6)', async () => {
     // 어제 번역에 실패한 기사를 흉내낸다
     const { data: articles } = await db.from('articles').select('id').limit(1);

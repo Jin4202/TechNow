@@ -134,7 +134,9 @@ describe('필수 자산 (4.6)', () => {
     expect(requiredAssets).toContain('korean_translation');
   });
 
-  it('커버 이미지는 아직 필수가 아니다 (Phase 5)', () => {
-    expect(requiredAssets).not.toContain('cover_image');
+  it('Phase 5 부터 커버 이미지가 필수다', () => {
+    // 커버 없는 기사는 그날 아침 발행에서 빠진다 (기획서 §2.4).
+    // placeholder 이미지를 대신 넣지 않는다 (CLAUDE.md §5)
+    expect(requiredAssets).toContain('cover_image');
   });
 });
