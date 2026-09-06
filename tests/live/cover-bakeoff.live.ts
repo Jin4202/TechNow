@@ -10,12 +10,11 @@ import type { WrittenArticle } from '@/pipeline/write/write-article';
 /**
  * 커버 이미지 비교 (로드맵 5.1). 실행: pnpm covers:bakeoff
  *
- * 같은 프롬프트로 Flux schnell 과 Imagen 4 Fast 를 각각 5장씩 만든다.
+ * 같은 프롬프트로 후보 모델들을 각각 5장씩 만든다 (`BAKEOFF_MODELS`).
  * 판단은 사람이 한다 — `out/covers.md` 를 열고 두 열을 나란히 본다.
  *
- * 비용: Flux 5장 $0.015 + Imagen 5장 $0.10 = 약 $0.12.
- * Imagen 이 7배 비싸다는 것이 이 비교의 핵심이다. **격차가 분명할 때만**
- * 비싼 쪽으로 간다 (기획서 §7).
+ * 비용: Flux 는 5장에 $0.015. 비싼 모델을 붙이면 그만큼 는다.
+ * **격차가 분명할 때만** 비싼 쪽으로 간다 (기획서 §7).
  *
  * 기사는 `out/articles.json` 에서 가져온다. 새로 생성하지 않는다 —
  * 커버는 실제 기사 제목에 붙는 것이고, 지어낸 제목으로 비교하면
@@ -29,6 +28,22 @@ interface StoredArticle {
 
 const HOW_MANY = 5;
 
+/**
+ * 비교할 모델. 기본은 Flux 하나다.
+ *
+ * 기획서 §7 이 지목한 Imagen 4 Fast 는 이 계정에서 부를 수 없다 (404).
+ * 대안을 붙일 때는 `BAKEOFF_MODELS=fal-ai/flux/schnell,fal-ai/recraft-v3` 처럼 넘긴다 —
+ * 어느 모델을 살지는 사람이 정하는 것이고, 스크립트가 정할 일이 아니다.
+ */
+const MODELS: ImageModel[] = (process.env.BAKEOFF_MODELS ?? IMAGE_MODELS.fluxSchnell)
+  .split(',')
+  .map((m) => m.trim() as ImageModel)
+  .filter(Boolean);
+
+function shortName(model: ImageModel): string {
+  return model.split('/').slice(1).join('-');
+}
+
 async function download(url: string, path: string): Promise<number> {
   const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
   if (!response.ok) throw new Error(`이미지 내려받기 실패: HTTP ${response.status}`);
@@ -40,7 +55,7 @@ async function download(url: string, path: string): Promise<number> {
 
 describe('커버 이미지 비교 (5.1)', () => {
   it(
-    '같은 프롬프트로 두 모델을 각각 5장',
+    '같은 프롬프트로 후보 모델을 각각 5장',
     async () => {
       const stored = JSON.parse(readFileSync('out/articles.json', 'utf8')) as {
         articles: StoredArticle[];
@@ -63,11 +78,12 @@ describe('커버 이미지 비교 (5.1)', () => {
         '3. **사람·로고가 나왔나.** 나왔으면 프롬프트가 아니라 필터를 고쳐야 한다',
         '4. **기사와 관련이 있나.** 아무 추상 도형이나 나오면 커버의 값이 없다',
         '',
-        `Imagen 은 장당 $${IMAGE_PRICING[IMAGE_MODELS.imagen4Fast]}, Flux 는 $${IMAGE_PRICING[IMAGE_MODELS.fluxSchnell]} 로 **7배** 차이다.`,
-        '격차가 분명하지 않으면 Flux 다 (기획서 §7).',
+        MODELS.map((m) => `\`${m}\` 장당 $${IMAGE_PRICING[m] ?? '?'}`).join(' · '),
         '',
-        '| 기사 | Flux schnell | Imagen 4 Fast |',
-        '|---|---|---|',
+        '격차가 분명하지 않으면 싼 쪽이다 (기획서 §7).',
+        '',
+        `| 기사 | ${MODELS.map(shortName).join(' | ')} |`,
+        `|---|${MODELS.map(() => '---').join('|')}|`,
       ];
 
       let cost = 0;
@@ -77,15 +93,13 @@ describe('커버 이미지 비교 (5.1)', () => {
         const prompt = buildCoverPrompt(entry.article.title, entry.article.oneLineSummary);
         const cells: string[] = [];
 
-        for (const [name, model] of [
-          ['flux', IMAGE_MODELS.fluxSchnell],
-          ['imagen', IMAGE_MODELS.imagen4Fast],
-        ] as [string, ImageModel][]) {
+        for (const model of MODELS) {
+          const name = shortName(model);
           try {
             const image = await fal.generate(model, prompt);
             const file = `covers/${entry.slug}-${name}.jpg`;
             const bytes = await download(image.url, `out/${file}`);
-            cost += IMAGE_PRICING[model];
+            cost += IMAGE_PRICING[model] ?? 0;
 
             cells.push(`<img src="${file}" width="320">`);
             console.log(`${entry.slug} ${name}: ${image.width}×${image.height} ${Math.round(bytes / 1024)}KB`);
@@ -98,7 +112,9 @@ describe('커버 이미지 비교 (5.1)', () => {
           }
         }
 
-        rows.push(`| **${entry.article.title}**<br><sub>${prompt.slice(-120)}</sub> | ${cells[0]} | ${cells[1]} |`);
+        rows.push(
+          `| **${entry.article.title}**<br><sub>${prompt.slice(-120)}</sub> | ${cells.join(' | ')} |`,
+        );
       }
 
       rows.push('', `생성 비용 $${cost.toFixed(3)} · 실패 ${failures.length}건`);

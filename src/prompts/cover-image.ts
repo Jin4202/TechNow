@@ -25,11 +25,16 @@
  */
 export const STYLE_PREFIX = [
   'Editorial illustration for a science and technology news site.',
-  'Flat vector illustration, geometric shapes, generous negative space, calm composition.',
-  'Muted palette: deep navy, slate grey, off-white, one warm accent colour.',
+  'Flat vector illustration, geometric shapes, clean edges, calm composition.',
+  // 배경색을 못 박는다. 1차 실측에서 "muted palette" 만으로는 크림색 배경이 나왔고,
+  // 목록에 카드가 나란히 놓이면 한 장만 밝은 것이 바로 눈에 띈다
+  'Deep navy background (#1e293b), slate grey shapes, one warm amber accent.',
+  // "generous negative space" 를 뺐다. 그 말이 있는 쪽에서 주제 없이
+  // 색면만 둘 있는 이미지가 나왔다 — 커버가 기사를 가리키지 못한다
+  'One clear subject object, centred, filling about half the frame.',
   'No text, no letters, no numbers, no logos, no watermarks.',
   'No people, no faces, no hands.',
-  'Not photorealistic. No 3D render, no lens flare, no stock-photo look.',
+  'Not photorealistic. No 3D render, no shading gradients, no lens flare, no stock-photo look.',
 ].join(' ');
 
 /**
@@ -70,5 +75,7 @@ export function subjectLine(title: string, oneLineSummary: string): string {
  */
 export function buildCoverPrompt(title: string, oneLineSummary: string): string {
   const subject = subjectLine(title, oneLineSummary);
-  return `${STYLE_PREFIX} The subject: ${subject}`;
+  // "Draw the object" 로 끝맺는다. 주제 문장만 붙이면 모델이 그것을 분위기로
+  // 해석하고 색면만 그린다 — 1차 실측에서 실제로 그랬다
+  return `${STYLE_PREFIX} Draw the single object at the centre of this story: ${subject}`;
 }

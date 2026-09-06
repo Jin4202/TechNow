@@ -56,7 +56,7 @@ describe('buildCoverPrompt', () => {
     const prompt = buildCoverPrompt('A new detector', 'It looks for dark matter.');
 
     expect(prompt.indexOf(STYLE_PREFIX)).toBe(0);
-    expect(prompt).toContain('The subject: A new detector');
+    expect(prompt).toContain('Draw the single object at the centre of this story: A new detector');
   });
 
   it('스타일 프리픽스가 금지 사항을 담고 있다', () => {

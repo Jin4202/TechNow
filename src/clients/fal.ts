@@ -11,12 +11,21 @@ import { z } from 'zod';
  * 기사당 이미지 1장(`budget.imagesPerArticle`)은 파이프라인 쪽에서 강제한다.
  */
 
-/** 5.1 비교 대상. 값은 fal 의 모델 경로다 */
+/**
+ * 5.1 비교 대상. 값은 fal 의 모델 경로다.
+ *
+ * **Imagen 4 는 목록에 없다.** 기획서 §7 이 대안으로 지목했지만 이 계정에서
+ * `fal-ai/imagen4/*` 는 어떤 경로로도 404 다 ("Application imagen4 not found",
+ * 2026-09-06 실측). fal 에서 내려갔거나 별도 승인이 필요하다.
+ * 그 자리는 실제로 부를 수 있는 모델로 채운다.
+ */
 export const IMAGE_MODELS = {
   /** 기본 후보. 장당 약 $0.003, Apache 2.0 (기획서 §7) */
   fluxSchnell: 'fal-ai/flux/schnell',
-  /** 대안. 장당 $0.02 — 7배 비싸다. 품질 격차가 분명할 때만 */
-  imagen4Fast: 'fal-ai/imagen4/preview/fast',
+  /** 벡터·플랫 일러스트에 강한 대안 */
+  recraftV3: 'fal-ai/recraft-v3',
+  /** 디자인·일러스트 대안 */
+  ideogramV2: 'fal-ai/ideogram/v2',
 } as const;
 
 export type ImageModel = (typeof IMAGE_MODELS)[keyof typeof IMAGE_MODELS];
@@ -24,7 +33,8 @@ export type ImageModel = (typeof IMAGE_MODELS)[keyof typeof IMAGE_MODELS];
 /** 장당 단가 (USD). 비용 로그(D-07)의 `cost_images` 용 */
 export const IMAGE_PRICING: Record<ImageModel, number> = {
   [IMAGE_MODELS.fluxSchnell]: 0.003,
-  [IMAGE_MODELS.imagen4Fast]: 0.02,
+  [IMAGE_MODELS.recraftV3]: 0.04,
+  [IMAGE_MODELS.ideogramV2]: 0.08,
 };
 
 const ImageSchema = z.object({
@@ -75,22 +85,19 @@ export class FalClient {
    * 이미지 한 장.
    *
    * 커버는 가로형이다 — 목록 카드와 상세 상단이 둘 다 가로다 (5.6).
-   * 모델마다 비율 파라미터 이름이 다르다: Flux 는 `image_size`,
-   * Imagen 은 `aspect_ratio` 다. 여기서 흡수한다.
    */
   async generate(
     model: ImageModel,
     prompt: string,
     options: { seed?: number } = {},
   ): Promise<GeneratedImage> {
-    const isImagen = model === IMAGE_MODELS.imagen4Fast;
-
+    // 비율 파라미터 이름이 모델마다 다르다. Flux 계열은 `image_size`,
+    // Recraft·Ideogram 은 문자열 이름이 다른 `image_size` 를 쓴다
     const body: Record<string, unknown> = {
       prompt,
       num_images: 1,
-      ...(isImagen
-        ? { aspect_ratio: '16:9' }
-        : { image_size: 'landscape_16_9', output_format: 'jpeg' }),
+      image_size: 'landscape_16_9',
+      ...(model === IMAGE_MODELS.fluxSchnell ? { output_format: 'jpeg' } : {}),
       ...(options.seed === undefined ? {} : { seed: options.seed }),
     };
 

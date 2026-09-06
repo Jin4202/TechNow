@@ -38,8 +38,8 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 
 **예산 $20 → $25** (D-36). 다만 실측 기준 하루 3편은 $28.6 이라 여전히 넘는다 — 2편이면 $20.6.
 
-다음 할 일: **Phase 5** — `5.1` 비교 테스트. **`FAL_KEY` 가 있어야 진행된다** (fal.ai 대시보드에서 발급 → `.env.local` 과 Trigger.dev 환경변수).
-키가 들어오면 `pnpm covers:bakeoff` 로 10장을 만들고 `out/covers.md` 를 사람이 본다.
+다음 할 일: **Phase 5** — `5.5` 이미지 태스크를 파이프라인에 편입 (`fill-assets` 에 자리는 이미 있다), 그다음 `5.4` 필수 자산 승격과 `5.6` 레이아웃.
+**Trigger.dev 프로덕션에 `FAL_KEY` 를 등록해야 한다** — 로컬 `.env.local` 에만 있다.
 `2.8` 은 일주일치 데이터가 쌓인 뒤에 한다.
 `2.8` 은 일주일치 데이터가 쌓인 뒤에 한다.
 
@@ -178,8 +178,8 @@ Trigger.dev prod (node-22)  →  Supabase 클라우드  →  Vercel
 
 | # | 태스크 | 완료 기준 |
 |---|---|---|
-| 5.1 | 비교 테스트. Flux schnell vs Imagen 4 Fast, 동일 프롬프트 5장씩 | **스크립트 준비됨 (`pnpm covers:bakeoff`, 약 $0.12). `FAL_KEY` 를 기다린다** — `.env.local` 의 값이 비어 있다 |
-| 5.2 | 고정 스타일 프리픽스 | **프리픽스·필터 작성 완료** (`src/prompts/cover-image.ts`, 단위 테스트 6). 일관성 판단은 5.1 의 이미지를 봐야 한다 |
+| ~~5.1~~ | ~~비교 테스트. Flux schnell vs Imagen 4 Fast, 동일 프롬프트 5장씩~~ | **완료 — Flux schnell 확정 (D-37).** Imagen 4 는 fal 에서 404 라 Recraft V3 로 대체 비교했고, Recraft 는 엉터리 글자 때문에 실격 |
+| ~~5.2~~ | ~~고정 스타일 프리픽스~~ | **완료.** 8장 실측 후 프리픽스 1회 수정(배경색 고정, 단일 주제 강제). 팔레트는 일관됨. 추상 주제에서 주제가 비는 한계는 D-37 |
 | ~~5.3~~ | ~~Storage 업로드~~ | **완료.** `covers` 버킷(공개, 파일명은 기사 uuid) + 익명 200 확인 (`pnpm covers:upload`, 비용 0). `cover_image_url` 저장은 5.5 |
 | 5.4 | 커버 이미지를 필수 자산 config에 추가, 런 내 재시도 + hold-back | mock 실패가 그날 아침 발행에서 기사를 제외시킴 |
 | 5.5 | 이미지 태스크를 파이프라인에 편입 | 새 기사에 이미지가 자동 생성됨 |

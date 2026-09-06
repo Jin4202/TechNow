@@ -44,17 +44,18 @@ describe('FalClient', () => {
     expect(calls[0]!.body.prompt).toBe('a calm illustration');
   });
 
-  it('모델마다 다른 비율 파라미터를 쓴다', async () => {
-    // Flux 는 image_size, Imagen 은 aspect_ratio 다. 틀리면 정사각형이 나온다
+  it('모델마다 받는 파라미터가 다르다', async () => {
+    // 커버는 가로형이다. 비율을 안 주면 정사각형이 나와 카드 레이아웃이 깨진다
     const flux = client(() => json(OK_BODY));
     await flux.fal.generate(IMAGE_MODELS.fluxSchnell, 'x');
     expect(flux.calls[0]!.body.image_size).toBe('landscape_16_9');
-    expect(flux.calls[0]!.body.aspect_ratio).toBeUndefined();
+    expect(flux.calls[0]!.body.output_format).toBe('jpeg');
 
-    const imagen = client(() => json(OK_BODY));
-    await imagen.fal.generate(IMAGE_MODELS.imagen4Fast, 'x');
-    expect(imagen.calls[0]!.body.aspect_ratio).toBe('16:9');
-    expect(imagen.calls[0]!.body.image_size).toBeUndefined();
+    const recraft = client(() => json(OK_BODY));
+    await recraft.fal.generate(IMAGE_MODELS.recraftV3, 'x');
+    expect(recraft.calls[0]!.body.image_size).toBe('landscape_16_9');
+    // output_format 은 Flux 만 받는다. 다른 모델에 보내면 422 다
+    expect(recraft.calls[0]!.body.output_format).toBeUndefined();
   });
 
   it('한 번에 한 장만 만든다 (기획서 §2.4)', async () => {
@@ -99,9 +100,13 @@ describe('FalClient', () => {
 });
 
 describe('IMAGE_PRICING', () => {
-  it('Imagen 이 Flux 보다 훨씬 비싸다 — 5.1 의 판단 기준이다', () => {
-    expect(IMAGE_PRICING[IMAGE_MODELS.imagen4Fast]).toBeGreaterThan(
+  it('대안들이 Flux 보다 훨씬 비싸다 — 5.1 의 판단 기준이다', () => {
+    // 격차가 분명할 때만 비싼 쪽으로 간다 (기획서 §7)
+    expect(IMAGE_PRICING[IMAGE_MODELS.recraftV3]).toBeGreaterThan(
       IMAGE_PRICING[IMAGE_MODELS.fluxSchnell] * 5,
+    );
+    expect(IMAGE_PRICING[IMAGE_MODELS.ideogramV2]).toBeGreaterThan(
+      IMAGE_PRICING[IMAGE_MODELS.recraftV3],
     );
   });
 
