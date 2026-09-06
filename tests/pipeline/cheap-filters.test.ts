@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { MAX_ITEM_AGE_DAYS } from '@/config/filters';
 import {
   applyCheapFilters,
   rejectReason,
@@ -17,6 +18,67 @@ const item = (title: string, feedName = 'f'): FeedItem => ({
   description: 'x'.repeat(300),
   url: 'https://example.org/x',
   publishedAt: null,
+});
+
+/** 기준 시각. 테스트가 오늘 날짜에 따라 흔들리면 안 된다 */
+const NOW = new Date('2026-09-06T00:00:00Z');
+const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000);
+
+describe('오래된 항목 (2026-09-06)', () => {
+  const aged = (title: string, days: number): FeedItem => ({
+    ...item(title),
+    publishedAt: daysAgo(days),
+  });
+
+  it('상한을 넘으면 stale', () => {
+    expect(rejectReason(aged('Atomically Thin Materials Significantly Shrink Qubits', 31), NOW))
+      .toBe('stale');
+  });
+
+  it('상한 안쪽이면 통과한다', () => {
+    expect(rejectReason(aged('Atomically Thin Materials Significantly Shrink Qubits', 29), NOW))
+      .toBeNull();
+  });
+
+  it('경계값(정확히 상한)은 통과시킨다 — 필터는 보수적으로', () => {
+    expect(rejectReason(aged('A perfectly reasonable science headline', MAX_ITEM_AGE_DAYS), NOW))
+      .toBeNull();
+  });
+
+  it('날짜가 없으면 통과시킨다', () => {
+    // 파서가 조용히 깨졌을 때 피드 전체가 사라지면 안 된다
+    expect(rejectReason(item('A perfectly reasonable science headline'), NOW)).toBeNull();
+  });
+
+  /**
+   * 회귀 테스트. IEEE Spectrum 이 실제로 상시 내보내는 2021년 기사 3건이다.
+   *
+   * **다른 어떤 규칙에도 안 걸린다는 것을 함께 고정한다** — 나이 검사가 유일한
+   * 방어선이므로, 누가 이 검사를 지우면 여기가 아니라 두 번째 expect 가 먼저 깨져
+   * "왜 필요했는지" 를 알려준다.
+   */
+  it('IEEE Spectrum 의 2021년 항목 3건을 잡는다', () => {
+    const real = [
+      ['Atomically Thin Materials Significantly Shrink Qubits', 1672],
+      ['How AI Will Change Chip Design', 1671],
+      ['Andrew Ng: Unbiggen AI', 1670],
+    ] as const;
+
+    for (const [title, days] of real) {
+      expect(rejectReason(aged(title, days), NOW), title).toBe('stale');
+      // 나이를 빼면 통과한다 = 나이 검사 말고는 이것들을 막는 것이 없다
+      expect(rejectReason(item(title), NOW), `${title} — 나이 외 방어선 없음`).toBeNull();
+    }
+  });
+
+  it('집계에 stale 이 사유로 나온다', () => {
+    const r = applyCheapFilters(
+      [aged('An old headline that is long enough', 400), item('A fresh headline right now')],
+      NOW,
+    );
+    expect(r.kept).toHaveLength(1);
+    expect(summarizeRejections(r.rejected)).toEqual({ stale: 1 });
+  });
 });
 
 describe('rejectReason — 걸러야 하는 것', () => {

@@ -15,6 +15,30 @@
 export const MIN_TITLE_LENGTH = 15;
 
 /**
+ * 이보다 오래된 항목은 뉴스가 아니다.
+ *
+ * **파이프라인에 나이 제한이 아예 없었다** (2026-09-06 발견). `publishedAt` 은
+ * parse-feed 가 파싱만 하고 아무 데서도 쓰지 않았다.
+ *
+ * 피드별 실측:
+ *   phys-org       중앙 1.2일  최고령    2.0일
+ *   science-daily  중앙 3.4일  최고령    7.4일
+ *   ars-technica   중앙 2.2일  최고령    3.1일
+ *   nasa           중앙 2.8일  최고령    3.4일
+ *   ieee-spectrum  중앙 13.2일 최고령 1672.3일  ← 2021년 기사 3건을 상시 내보낸다
+ *
+ * 그 3건("Andrew Ng: Unbiggen AI" 등)은 아래 어느 패턴에도 안 걸리고, 채점기는
+ * 날짜를 받지 않아 4년 전 글인지 알 방법이 없다. 지금까지 안 터진 건
+ * seen_feed_items 중복 제거 덕인데 processedRetentionDays 가 90일이라
+ * 90일 뒤 다시 후보가 된다.
+ *
+ * **30일인 이유**: IEEE 중앙값이 13.2일이라 14일로 잡으면 IEEE 항목 절반이 죽는다.
+ * IEEE 는 robotics-hardware 와 industry-policy 를 덮는 두 피드 중 하나다 (D-16).
+ * 이미 좁은 카테고리 공급을 더 좁히지 않으면서 2021년 3건만 걸러내는 값이 30일이다.
+ */
+export const MAX_ITEM_AGE_DAYS = 30;
+
+/**
  * 설명 길이는 필터로 쓰지 않는다.
  *
  * Ars Technica 의 설명은 48~115자인데 "Second complete map of a fruit fly brain

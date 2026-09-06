@@ -1,4 +1,4 @@
-import { FILTER_RULES, MIN_TITLE_LENGTH } from '@/config/filters';
+import { FILTER_RULES, MAX_ITEM_AGE_DAYS, MIN_TITLE_LENGTH } from '@/config/filters';
 
 import type { FeedItem } from './parse-feed';
 
@@ -21,9 +21,21 @@ export interface FilterResult {
   rejected: FilterReject[];
 }
 
-/** 걸리면 사유, 통과하면 null */
-export function rejectReason(item: FeedItem): string | null {
+/**
+ * 걸리면 사유, 통과하면 null.
+ *
+ * `now` 를 인자로 받는 것은 테스트를 위해서다. 이 파일의 순수 함수 성격을 지킨다.
+ */
+export function rejectReason(item: FeedItem, now: Date = new Date()): string | null {
   const title = item.title.trim();
+
+  // 나이를 맨 먼저 본다. 가장 싸고 가장 확실한 배제다.
+  // **날짜가 없으면 통과시킨다** — 이 파일의 원칙대로 애매하면 채점에 맡긴다.
+  // 날짜 없음을 탈락 사유로 쓰면 파서가 조용히 깨졌을 때 피드 전체가 사라진다
+  if (item.publishedAt) {
+    const ageDays = (now.getTime() - item.publishedAt.getTime()) / 86_400_000;
+    if (ageDays > MAX_ITEM_AGE_DAYS) return 'stale';
+  }
 
   if (title.length < MIN_TITLE_LENGTH) return 'too-short';
 
@@ -34,12 +46,15 @@ export function rejectReason(item: FeedItem): string | null {
   return null;
 }
 
-export function applyCheapFilters(items: readonly FeedItem[]): FilterResult {
+export function applyCheapFilters(
+  items: readonly FeedItem[],
+  now: Date = new Date(),
+): FilterResult {
   const kept: FeedItem[] = [];
   const rejected: FilterReject[] = [];
 
   for (const item of items) {
-    const reason = rejectReason(item);
+    const reason = rejectReason(item, now);
     if (reason) rejected.push({ item, reason });
     else kept.push(item);
   }

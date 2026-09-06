@@ -14,7 +14,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:secrets",
     "db:types": "supabase gen types typescript --local > src/db/types.ts",
     "db:reset": "supabase db reset",
-    "feeds:live": "vitest run --config vitest.live.config.mts --reporter=verbose",
+    "feeds:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/feeds.live.ts",
     "db:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/seen-items.live.ts",
     "daily:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/run-daily.live.ts",
     "group:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/group-topics.live.ts",

@@ -1002,6 +1002,64 @@ D-27 과 같은 교훈이다: 그럴듯한 인과가 측정을 이기지 못한�
   통과율이 오를 때 새로 살아나는 것은 어려운 토픽이라 평균을 끌어내린다.
   **양쪽에서 모두 성공한 fixture 로만 짝지어 비교한다.**
 
+### D-49. 피드 항목에 30일 나이 상한. 마이그레이션 누락은 CI 가 잡는다
+
+2026-09-06. 프로덕션 `daily-pipeline` 이 죽어서 조사하다 두 가지가 나왔다.
+
+**1. 마이그레이션이 클라우드에 안 갔다.**
+
+```
+run_topics 기록 실패: Could not find the 'build_detail' column of 'run_topics'
+```
+
+`20260906050000_run_topic_build_failure.sql` 을 커밋(`d736fcc`)만 하고
+`supabase db push` 를 빠뜨렸다. **이번 세션에서 두 번째다** — 앞서도 클라우드가
+2개 뒤처진 것을 발견해 push 했다. 기억으로 막을 문제가 아니라서 CI 잡을 넣었다
+(`.github/workflows/ci.yml`, `migrations`).
+
+**실패가 아니라 경고로 둔다.** 머지 직후 잠깐 어긋나는 것은 정상이고, 여기서
+빨간불을 내면 곧 무시하게 된다. `SUPABASE_ACCESS_TOKEN` 시크릿이 없으면 스킵된다.
+
+크래시 지점이 기사 생성 **뒤**(판정 기록)라 기사는 `ready` 로 남았고,
+`markProcessed` 가 안 돌아 `seen_feed_items` 가 `pending` 으로 남았다 — 다음 런이
+같은 후보를 다시 본다. D-01 이 설계한 복구 동작 그대로다.
+
+**2. 피드 항목에 나이 제한이 아예 없었다.**
+
+`publishedAt` 은 `parse-feed.ts` 가 파싱만 하고 파이프라인 어디에서도 쓰이지
+않았다 (사용처 0곳). 실측:
+
+| feed | 건수 | 중앙 | 최고령 | 30일 초과 |
+|---|---|---|---|---|
+| phys-org | 30 | 1.3일 | 2.0일 | 0 |
+| science-daily | 60 | 3.4일 | 7.4일 | 0 |
+| ars-technica | 20 | 2.3일 | 3.1일 | 0 |
+| nasa | 10 | 2.8일 | 3.4일 | 0 |
+| **ieee-spectrum** | 30 | **13.2일** | **1672.3일** | **3** |
+
+IEEE Spectrum 이 2021년 기사 3건을 상시 내보낸다 — "Andrew Ng: Unbiggen AI",
+"How AI Will Change Chip Design", "Atomically Thin Materials Significantly Shrink
+Qubits". **셋 다 저비용 필터를 통과한다.** 채점기는 제목과 설명만 보고 날짜를 받지
+않으므로 4년 전 글인지 알 방법이 없다. 즉 오늘의 뉴스로 4년 전 기사를 낼 수 있었다.
+
+지금까지 안 터진 이유는 `seen_feed_items` 중복 제거뿐인데,
+`processedRetentionDays` 가 90일이라 **90일 뒤 다시 후보가 된다.**
+
+**`MAX_ITEM_AGE_DAYS = 30`.** 14일로 잡으면 IEEE 항목 절반이 죽는데, IEEE 는
+`robotics-hardware` 와 `industry-policy` 를 덮는 두 피드 중 하나다 (D-16).
+이미 좁은 카테고리 공급을 더 좁히지 않으면서(D-46) 2021년 3건만 걸러내는 값이 30일이다.
+실측 확인: 150건 중 정확히 그 3건만 `stale` 이고 다른 피드는 0건이다.
+
+**날짜가 없는 항목은 통과시킨다.** `filters.ts` 의 원칙대로 애매하면 채점에 맡긴다.
+날짜 없음을 탈락 사유로 쓰면 파서가 조용히 깨졌을 때 피드 전체가 사라진다.
+
+**채점기에 날짜를 넘겨 novelty 축이 판단하게 하는 방안은 채택하지 않았다.**
+결정적으로 배제할 수 있는 것을 LLM 판단에 맡기면 비싸고 불안정하다 (CLAUDE.md §2.6).
+
+**곁가지로 `feeds:live` 스크립트 버그를 고쳤다.** 파일 인자가 빠져 있어서
+`pnpm feeds:live` 가 **라이브 테스트 전체**를 돌리고 있었다. 피드만 보려다
+Claude·Brave·fal 호출이 전부 나갔다.
+
 ---
 
 ## 미기록 (해당 태스크에서 확인 후 추가할 것)
