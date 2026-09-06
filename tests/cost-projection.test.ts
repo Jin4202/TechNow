@@ -27,12 +27,13 @@ describe('projectMonthlyCost', () => {
   });
 
   it('실패한 조사의 변동비도 계산에 들어간다', () => {
-    // 3편 만들려다 1편은 근거 검증에서 깨진 날 (D-21)
-    const p = projectMonthlyCost({ costFixed: 0.16, costVariable: 0.6, articlesBuilt: 2 });
+    // 3편 만들려다 1편은 근거 검증에서 깨진 날 (D-21).
+    // 만들어진 기사는 2편인데 비용은 3편치가 나갔다 — 편당 단가가 그만큼 올라간다
+    const p = projectMonthlyCost({ costFixed: 0.16, costVariable: 0.7, articlesBuilt: 2 });
 
-    expect(p.variablePerArticle).toBe(0.3);
-    expect(p.projectedMonthlyUsd).toBe(22.8);
-    expect(p.overBudget).toBe(true);
+    expect(p.variablePerArticle).toBe(0.35);
+    expect(p.projectedMonthlyUsd).toBe(25.8);
+    expect(p.overBudget, `월 예산 $${budget.monthlyUsd} 를 넘는다`).toBe(true);
   });
 
   it('예산의 alertRatio 를 넘으면 알린다', () => {
