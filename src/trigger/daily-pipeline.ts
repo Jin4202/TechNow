@@ -3,8 +3,10 @@ import { logger, schedules } from '@trigger.dev/sdk';
 import { getAnthropic, ZERO_USAGE } from '@/clients/anthropic';
 import { FalClient } from '@/clients/fal';
 import { createServiceClient } from '@/db/supabase/service';
+import { dailyAlerts } from '@/pipeline/alerts';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
+import { alertTask } from './alert';
 import { buildArticleTask } from './build-article';
 
 import type { BuildTopicResult } from '@/pipeline/build-topic';
@@ -62,6 +64,12 @@ export const dailyPipeline = schedules.task({
     });
 
     logger.info('일간 런 완료', { ...result, failures: result.failures.length });
+
+    // 알림은 런의 성패와 별개다 (D-43). 예산 초과도 기사 0건도 런은 성공이다
+    for (const alert of dailyAlerts(result)) {
+      await alertTask.trigger(alert);
+    }
+
     return result;
   },
 });

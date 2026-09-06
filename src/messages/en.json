@@ -70,7 +70,8 @@
     "errors": {
       "missing-fields": "Enter your email and password.",
       "weak-password": "Passwords must be at least 6 characters.",
-      "rejected": "We couldn't sign you in."
+      "rejected": "We couldn't sign you in.",
+      "too-many": "Too many attempts. Try again in a few minutes."
     }
   }
 }

@@ -20,6 +20,7 @@ import {
   insertPending,
   markProcessed,
 } from '@/db/seen-feed-items';
+import { cleanupRateLimits } from '@/db/rate-limit';
 import { cleanupSourceTexts } from '@/db/source-texts';
 import { applyCheapFilters, summarizeRejections } from '@/pipeline/discover/cheap-filters';
 import { dedupeItems, fetchFeeds } from '@/pipeline/discover/fetch-feeds';
@@ -77,7 +78,12 @@ export interface DailyRunResult {
   costVariable: number;
   projection: CostProjection;
   failures: FeedFailure[];
-  cleaned: { pendingDeleted: number; processedDeleted: number; sourceTextsDeleted: number };
+  cleaned: {
+    pendingDeleted: number;
+    processedDeleted: number;
+    sourceTextsDeleted: number;
+    rateLimitsDeleted: number;
+  };
 }
 
 export interface DailyRunOptions {
@@ -295,6 +301,8 @@ export async function runDailyDiscovery(
     await markProcessed(db, candidates.map((i) => i.urlHash));
     const seenCleaned = await cleanupSeenItems(db);
     const sourceTextsDeleted = await cleanupSourceTexts(db);
+    // 지난 윈도우의 rate limit 카운터 (7.2). 안 지우면 영구히 쌓인다
+    const rateLimitsDeleted = await cleanupRateLimits(db);
 
     // 고정비: 발굴~선정. 기사가 0건인 날에도 발생한다 (D-07)
     const fixedUsage = addUsage(addUsage(grouping.usage, scoring.usage), rescore.usage);
@@ -358,7 +366,7 @@ export async function runDailyDiscovery(
       costVariable: Number(costVariable.toFixed(4)),
       projection,
       failures,
-      cleaned: { ...seenCleaned, sourceTextsDeleted },
+      cleaned: { ...seenCleaned, sourceTextsDeleted, rateLimitsDeleted },
     };
   } catch (error) {
     // 실패해도 런 기록은 남긴다. pending 항목은 그대로여서 다음 날 재처리된다

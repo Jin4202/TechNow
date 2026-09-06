@@ -61,7 +61,8 @@ export function ScrapButton({
         return;
       }
 
-      if (outcome === 'not-found') setScrapped(false);
+      // 막혔거나 없는 기사면 눌린 상태를 되돌린다. 그대로 두면 담긴 줄 안다
+      if (outcome === 'not-found' || outcome === 'rate-limited') setScrapped(false);
     });
   }
 

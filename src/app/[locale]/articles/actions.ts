@@ -1,6 +1,7 @@
 'use server';
 
 import { recordFeedback, type FeedbackOutcome } from '@/db/article-feedback';
+import { requestIdentifier, withinRateLimit } from '@/db/rate-limit';
 import { toggleScrap, type ScrapOutcome } from '@/db/scraps';
 import { createClient } from '@/db/supabase/server';
 
@@ -43,5 +44,15 @@ export async function toggleScrapAction(articleId: string): Promise<{ outcome: S
   if (!/^[0-9a-f-]{36}$/i.test(articleId)) return { outcome: 'not-found' };
 
   const supabase = await createClient();
+
+  // 사용자 기준으로 센다. 로그인하지 않았으면 IP 로 — 어차피 다음 줄에서 막힌다
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!(await withinRateLimit(supabase, 'scrap', user?.id ?? (await requestIdentifier())))) {
+    return { outcome: 'rate-limited' };
+  }
+
   return { outcome: await toggleScrap(supabase, articleId) };
 }

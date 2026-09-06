@@ -1,7 +1,10 @@
 import { logger, schedules } from '@trigger.dev/sdk';
 
+import { publishAlerts } from '@/pipeline/alerts';
 import { createServiceClient } from '@/db/supabase/service';
 import { publishReadyArticles } from '@/pipeline/publish/publish-ready';
+
+import { alertTask } from './alert';
 
 /**
  * 발행 태스크 (로드맵 3.13).
@@ -30,6 +33,12 @@ export const publishBatch = schedules.task({
       logger.info('발행할 기사가 없다', { heldBack: result.heldBack, failed: result.failed });
     } else {
       logger.info('발행 완료', { ...result });
+    }
+
+    // 기획서 §2.5 — 2회 hold-back 끝에 포기한 기사는 알린다.
+    // 조사·작성 비용을 쓴 기사가 발행되지 못하고 사라지는 것이다
+    for (const alert of publishAlerts(result)) {
+      await alertTask.trigger(alert);
     }
 
     return result;

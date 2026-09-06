@@ -2,8 +2,11 @@ import { logger, schedules } from '@trigger.dev/sdk';
 
 import { getAnthropic } from '@/clients/anthropic';
 import { previousMonthStart } from '@/db/monthly-scraps';
+import { monthlyAlerts } from '@/pipeline/alerts';
 import { createServiceClient } from '@/db/supabase/service';
 import { runMonthlySummaries } from '@/pipeline/run-monthly';
+
+import { alertTask } from './alert';
 
 /**
  * 월간 요약 태스크 (로드맵 6.6).
@@ -50,6 +53,10 @@ export const monthlySummary = schedules.task({
       skipped: result.skipped.length,
       costUsd: result.costUsd,
     });
+
+    for (const alert of monthlyAlerts({ skipped: result.skipped.length, users: result.users })) {
+      await alertTask.trigger(alert);
+    }
 
     return result;
   },

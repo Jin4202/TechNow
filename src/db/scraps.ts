@@ -13,7 +13,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * 스크랩에는 로그인이 필요하다 (기획서 §2.7). 기사 읽기와 다른 점이다.
  */
 
-export type ScrapOutcome = 'scrapped' | 'unscrapped' | 'not-logged-in' | 'not-found';
+export type ScrapOutcome =
+  | 'scrapped'
+  | 'unscrapped'
+  | 'not-logged-in'
+  | 'not-found'
+  /** 너무 자주 눌렀다 (7.2) */
+  | 'rate-limited';
 
 /**
  * 스크랩을 켜고 끈다.

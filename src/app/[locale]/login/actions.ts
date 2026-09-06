@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 
 import { isLocale, LOCALE_COOKIE, type Locale } from '@/config/locales';
 import { getProfile, updateLocale } from '@/db/profiles';
+import { requestIdentifier, withinRateLimit } from '@/db/rate-limit';
 import { createClient } from '@/db/supabase/server';
 
 /**
@@ -30,7 +31,7 @@ async function syncLocaleCookie(locale: Locale): Promise<void> {
   });
 }
 
-export type AuthErrorCode = 'missing-fields' | 'weak-password' | 'rejected';
+export type AuthErrorCode = 'missing-fields' | 'weak-password' | 'rejected' | 'too-many';
 
 /**
  * 폼이 보여줄 상태.
@@ -55,6 +56,11 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   if (!email || !password) return { error: 'missing-fields' };
 
   const supabase = await createClient();
+
+  // 비밀번호 대입을 느리게 만든다 (7.2). 오타 몇 번은 통과하는 상한이다
+  if (!(await withinRateLimit(supabase, 'auth', await requestIdentifier()))) {
+    return { error: 'too-many' };
+  }
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   // detail 은 Supabase 가 준 영문 원문이다. 번역하지 않고 보조로만 보여준다 —
   // "Email not confirmed" 같은 구분은 일반 문구로 덮으면 사라진다
@@ -74,6 +80,10 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   if (password.length < 6) return { error: 'weak-password' };
 
   const supabase = await createClient();
+
+  if (!(await withinRateLimit(supabase, 'auth', await requestIdentifier()))) {
+    return { error: 'too-many' };
+  }
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { error: 'rejected', detail: error.message };
 
