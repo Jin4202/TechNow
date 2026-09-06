@@ -28,16 +28,29 @@ export interface ArticleListItem {
   published_at: string | null;
 }
 
+/** 목록 좁히기 (7.3). 없으면 전체 */
+export interface ArticleFilter {
+  category?: Category;
+  tag?: string;
+  limit?: number;
+}
+
 export async function listPublishedArticles(
   db: SupabaseClient<Database>,
   locale: Locale = DEFAULT_LOCALE,
-  limit = 30,
+  filter: ArticleFilter = {},
 ): Promise<ArticleListItem[]> {
+  const limit = filter.limit ?? 30;
+
   if (locale === DEFAULT_LOCALE) {
-    const { data, error } = await db
+    let query = db
       .from('articles')
       .select('id, slug, category, title, one_line_summary, cover_image_url, published_at')
-      .eq('status', 'published')
+      .eq('status', 'published');
+
+    query = applyFilter(query, filter);
+
+    const { data, error } = await query
       .order('published_at', { ascending: false })
       .limit(limit);
 
@@ -46,13 +59,17 @@ export async function listPublishedArticles(
   }
 
   // `!inner` 라서 번역이 없는 기사는 결과에서 빠진다
-  const { data, error } = await db
+  let query = db
     .from('articles')
     .select(
       'id, slug, category, cover_image_url, published_at, article_translations!inner(title, one_line_summary, locale)',
     )
     .eq('status', 'published')
-    .eq('article_translations.locale', locale)
+    .eq('article_translations.locale', locale);
+
+  query = applyFilter(query, filter);
+
+  const { data, error } = await query
     .order('published_at', { ascending: false })
     .limit(limit);
 
@@ -67,6 +84,27 @@ export async function listPublishedArticles(
     cover_image_url: row.cover_image_url,
     published_at: row.published_at,
   }));
+}
+
+/**
+ * 필터를 건다 (7.3).
+ *
+ * 태그는 배열 컬럼이라 `contains` 를 쓴다. 카테고리는 인덱스가 있다
+ * (`articles_category_idx`) — 처음부터 이 필터를 예상하고 만든 인덱스다.
+ *
+ * 제네릭인 이유: 영문 질의와 번역 조인 질의의 반환 타입이 달라서
+ * 하나로 좁히면 supabase-js 의 타입 추론이 무너진다
+ */
+function applyFilter<T>(query: T, filter: ArticleFilter): T {
+  let next = query as T & {
+    eq: (column: string, value: string) => T;
+    contains: (column: string, value: string[]) => T;
+  };
+
+  if (filter.category) next = next.eq('category', filter.category) as typeof next;
+  if (filter.tag) next = next.contains('tags', [filter.tag]) as typeof next;
+
+  return next as T;
 }
 
 export interface ArticleSource {

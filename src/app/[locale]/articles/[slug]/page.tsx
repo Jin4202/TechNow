@@ -149,11 +149,15 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
         {article.tags.length > 0 ? (
           <ul className="mt-8 flex flex-wrap gap-2">
             {article.tags.map((tag) => (
-              <li
-                key={tag}
-                className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-black/60 dark:bg-white/10 dark:text-white/60"
-              >
-                {tag}
+              <li key={tag}>
+                {/* 태그는 목록을 좁히는 길이다 (7.3). 태그 목록 페이지는 두지 않는다 —
+                    기사에서 눌러 들어오는 경로 하나면 된다 */}
+                <Link
+                  href={`/${locale}?tag=${encodeURIComponent(tag)}`}
+                  className="block rounded-full bg-black/5 px-2.5 py-1 text-xs text-black/60 hover:text-black dark:bg-white/10 dark:text-white/60 dark:hover:text-white"
+                >
+                  {tag}
+                </Link>
               </li>
             ))}
           </ul>

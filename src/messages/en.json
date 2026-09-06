@@ -10,7 +10,8 @@
     "logOut": "Log out"
   },
   "home": {
-    "empty": "No new stories today"
+    "empty": "No new stories today",
+    "noMatch": "No articles match this filter."
   },
   "profile": {
     "title": "Profile",
