@@ -14,6 +14,12 @@ import { CATEGORIES } from '@/config/categories';
  *
  * 출처 블록은 buildGroundedMessages 가 앞에 붙인다 (D-06). 이 파일은
  * **지시문만** 만든다 — 출처를 여기서 다시 넣으면 캐시 구조가 깨진다.
+ *
+ * **GROUNDING 절은 실측에서 나왔다** (D-47, fixtures/baseline/2026-09-06.md).
+ * 14건 중 6건이 grounding-failed 였고 규격 위반은 0건이었다 — 즉 이 프롬프트가
+ * 못 지키게 하는 것은 형식이 아니라 근거다. 실패한 진술 8개를 분류하니
+ * 출처 침묵을 메움 4건, 유보를 떼어냄 2건, 세부를 틀림 2건이었고
+ * 절의 네 항목이 그 넷에 하나씩 대응한다. 추측으로 쓴 문장이 없다.
  */
 
 const categoryValues = CATEGORIES.map((c) => c.value) as [string, ...string[]];
@@ -125,6 +131,20 @@ When a result is impressive, show the number instead of the adjective:
   Not "the improvement is remarkable"
   But "previous coatings lasted about 800 cycles; this one lasted 4,000"
 
+GROUNDING — an article that fails this is not published at all
+
+Every statement you write is checked against these sources afterwards, one by one. A single unsupported statement stops the whole article. So a sentence you are not sure about costs far more than a sentence you leave out.
+
+The failures are almost never inventions. They are small, confident additions — a mechanism you know, a name you remember, a hedge that felt like padding. Watch for these four:
+
+- **Silence in the sources is not a fact.** If no source says whether something is true, you cannot write that it is, and you cannot write that it is not. "Works without retraining", "requires no special equipment", "the first of its kind" — none of these are supported by sources that simply did not discuss it.
+
+- **Do not explain what a source only named.** When a source names a technique, a structure, or an effect without saying how it works, you may name it too — but you may not describe its mechanism, its cause, or what it does. Your knowledge of the field is not a source here. If naming it without explaining it would break the EXPLAINING rules above, leave the whole thing out and write about something the sources do explain.
+
+- **Carry every hedge.** "exploring ways to extend" is not "will extend". "suggests" is not "shows". "in mice", "preliminary", "not yet peer reviewed", "one of several candidates" — if a source qualified something, the qualification is part of it. Removing a hedge makes a sentence stronger and unsupported at the same time.
+
+- **Copy names, spellings, titles, and numbers exactly.** Do not correct a source's spelling from memory, do not supply a name the source left out, and do not rearrange a source's comparison into a number of your own. If a source says "A is less than a quarter of B", that is a statement about A — it does not license a figure for B.
+
 ATTRIBUTION
 Attribute in the text only when it matters: a claim only one source makes, a figure the sources disagree on, or a direct characterisation by the researchers. Do not narrate your reading ("Ars Technica describes...", "The MRC LMB reports..."), which turns the article into a report about coverage rather than about the science. The source numbers already record where each section came from.
 
@@ -146,17 +166,21 @@ TAGS
  */
 const FINAL_CHECK = `BEFORE YOU RETURN
 Read your draft as someone meeting this subject for the first time. Fix, in order:
-1. An explanation that uses another unexplained term — rewrite it in words the reader already has.
-2. A term named but not explained — a one-line definition that only renames it does not count.
-3. A sentence that introduces two unfamiliar things at once — split it.
-4. A stretch of three or more long sentences in a row — break the run with a short one.
-5. A number the reader cannot picture — anchor it to something they can.
-6. An affiliation or author list sitting inside a sentence that also carries a finding — move it out.
-7. A paragraph whose first sentence is not its point — reorder it.
-8. Sections with an empty "sources" array — add the source numbers, or drop the section.
-9. Any word from the banned list, any exclamation mark, any rhetorical question.
+1. A mechanism, cause, or definition you supplied for something the sources only named — cut it, or cut the mention with it.
+2. A statement the sources are silent on, including any negative ("without", "no need for", "the first") — cut it.
+3. A hedge the sources made that your sentence dropped — put it back.
+4. A name, spelling, or figure you wrote from memory rather than read off a source — check it against the source or cut it.
+5. An explanation that uses another unexplained term — rewrite it in words the reader already has.
+6. A term named but not explained — a one-line definition that only renames it does not count.
+7. A sentence that introduces two unfamiliar things at once — split it.
+8. A stretch of three or more long sentences in a row — break the run with a short one.
+9. A number the reader cannot picture — anchor it to something they can.
+10. An affiliation or author list sitting inside a sentence that also carries a finding — move it out.
+11. A paragraph whose first sentence is not its point — reorder it.
+12. Sections with an empty "sources" array — add the source numbers, or drop the section.
+13. Any word from the banned list, any exclamation mark, any rhetorical question.
 
-Most drafts fail on the first two.`;
+The first four are what stop an article from being published at all.`;
 
 export function buildWriteInstructions(topicTitle: string): string {
   return `${WRITE_INSTRUCTIONS}
