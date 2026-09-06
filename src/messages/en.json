@@ -65,6 +65,7 @@
     "submitting": "Working…",
     "logInSubmit": "Log in",
     "signUpSubmit": "Create account",
+    "checkEmail": "Account created. Check your email for the confirmation link, then log in.",
     "errors": {
       "missing-fields": "Enter your email and password.",
       "weak-password": "Passwords must be at least 6 characters.",

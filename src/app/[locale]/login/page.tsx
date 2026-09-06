@@ -68,7 +68,13 @@ export default function LoginPage() {
           />
         </label>
 
-        {state ? (
+        {state && 'notice' in state ? (
+          <p role="status" className="text-sm text-black/70 dark:text-white/70">
+            {t('checkEmail')}
+          </p>
+        ) : null}
+
+        {state && 'error' in state ? (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {t(`errors.${state.error}`)}
             {/* Supabase 가 준 영문 원문. 왜 거절됐는지는 이쪽에만 남는다 */}
