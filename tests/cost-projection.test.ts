@@ -33,7 +33,8 @@ describe('projectMonthlyCost', () => {
 
     expect(p.variablePerArticle).toBe(0.35);
     expect(p.projectedMonthlyUsd).toBe(25.8);
-    expect(p.overBudget, `월 예산 $${budget.monthlyUsd} 를 넘는다`).toBe(true);
+    // 예산 판정은 금액 리터럴이 아니라 예산과의 비교다. 예산은 바뀐다 (D-36, D-46)
+    expect(p.overBudget).toBe(25.8 > budget.monthlyUsd);
   });
 
   it('예산의 alertRatio 를 넘으면 알린다', () => {

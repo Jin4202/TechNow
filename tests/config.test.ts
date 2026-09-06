@@ -36,8 +36,14 @@ describe('thresholds', () => {
     expect(thresholds.processedRetentionDays).toBeGreaterThan(thresholds.followUpWindowDays);
   });
 
-  it('일 상한은 3 (비용 가드)', () => {
-    expect(thresholds.dailyCap).toBe(3);
+  it('일 상한은 5 (비용 가드, D-46)', () => {
+    expect(thresholds.dailyCap).toBe(5);
+  });
+
+  // 재채점은 "상한의 3배" 규칙이다 (D-19). 상한을 올리고 여기를 안 올리면
+  // 후보가 상한보다 적어져 조용히 공급이 막힌다
+  it('재채점 대상이 일 상한의 3배다 (D-19)', () => {
+    expect(thresholds.rescoreTopN).toBe(thresholds.dailyCap * 3);
   });
 });
 

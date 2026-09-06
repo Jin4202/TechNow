@@ -107,22 +107,33 @@ describe('selectTopics', () => {
 });
 
 describe('config 를 배포 없이 바꿀 수 있다 (2.6)', () => {
-  const scored = [s(0, 5, 5, 5), s(1, 4, 4, 4), s(2, 4, 3, 3), s(3, 3, 4, 3)];
+  // 총점 15, 12, 10, 10, 12, 10, 11 — 넷째(3,4,3)까지 전부 임계 통과다.
+  // 상한이 실제로 무는지 보려면 통과 건수가 상한보다 많아야 한다
+  const scored = [
+    s(0, 5, 5, 5),
+    s(1, 4, 4, 4),
+    s(2, 4, 3, 3),
+    s(3, 3, 4, 3),
+    s(4, 4, 4, 4),
+    s(5, 3, 3, 4),
+    s(6, 4, 4, 3),
+  ];
 
-  it('기본값에서는 4개 중 3개가 통과하고 상한 3에 걸린다', () => {
-    expect(selectTopics(scored).selected).toHaveLength(3);
+  it('통과 건수가 상한보다 많으면 상한에서 잘린다', () => {
+    expect(scored.length).toBeGreaterThan(thresholds.dailyCap);
+    expect(selectTopics(scored).selected).toHaveLength(thresholds.dailyCap);
   });
 
   it('임계값을 올리면 선정 결과가 바뀐다', () => {
     process.env.TECHNOW_THRESHOLD_TOTAL = '13';
-    // 15, 12, 10, 10 중 13 이상은 하나
+    // 15, 12, 10, 10, 12, 10, 11 중 13 이상은 하나
     expect(selectTopics(scored).selected).toHaveLength(1);
   });
 
   it('축 하한을 올리면 선정 결과가 바뀐다', () => {
     process.env.TECHNOW_MIN_AXIS = '4';
-    // 축이 전부 4 이상인 건 (5,5,5) 와 (4,4,4)
-    expect(selectTopics(scored).selected).toHaveLength(2);
+    // 축이 전부 4 이상인 건 (5,5,5) 와 (4,4,4) 둘 — 그리고 (4,4,4) 가 하나 더
+    expect(selectTopics(scored).selected).toHaveLength(3);
   });
 
   it('상한을 바꾸면 선정 수가 바뀐다', () => {
@@ -138,7 +149,7 @@ describe('config 를 배포 없이 바꿀 수 있다 (2.6)', () => {
 
   it('빈 문자열도 기본값', () => {
     process.env.TECHNOW_DAILY_CAP = '';
-    expect(thresholds.dailyCap).toBe(3);
+    expect(thresholds.dailyCap).toBe(5);
   });
 });
 

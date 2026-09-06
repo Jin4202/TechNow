@@ -28,9 +28,17 @@ export const thresholds = {
     return envInt('TECHNOW_MIN_AXIS', 3);
   },
 
-  /** 하루 발행 상한. 비용 가드. env: TECHNOW_DAILY_CAP */
+  /**
+   * 하루 발행 상한. 비용 가드. env: TECHNOW_DAILY_CAP
+   *
+   * 3 → 5 (2026-09-06, D-46). 카테고리 7종을 매일 한 편씩 덮는 것은 공급과
+   * 비용 양쪽에서 불가능해서(임계 통과가 하루 8건, 7편이면 월 $79) 상한만 올렸다.
+   *
+   * **공급이 먼저 막힌다.** 통과율 60% 면 5편에 8시도가 필요한데 임계 통과가
+   * 그만큼 안 나오는 날이 많다. 5는 도달 목표가 아니라 천장이다.
+   */
   get dailyCap() {
-    return envInt('TECHNOW_DAILY_CAP', 3);
+    return envInt('TECHNOW_DAILY_CAP', 5);
   },
 
   /**
@@ -40,14 +48,15 @@ export const thresholds = {
    * 대상 수가 요동친다 — 실측에서 총점 중앙값 9에 임계값 10이라
    * 밴드가 134개 중 72개를 삼켰고 월 $8.21 이 나왔다.
    *
-   * 상한이 3인 이상 실제 판단이 필요한 건 상위 몇 개뿐이다.
+   * 상한이 한 자릿수인 이상 실제 판단이 필요한 건 상위 몇 개뿐이다.
    * 20등 토픽의 점수가 9인지 10인지는 아무 결과도 바꾸지 않는다.
    *
    * 상한의 3배로 둔다 — 재채점이 점수를 낮출 수 있으므로 여유를 둔다.
+   * 상한이 5가 되면서 9 → 15 (D-46). 이 값은 공급 병목도 조금 넓힌다.
    * env: TECHNOW_RESCORE_TOP_N
    */
   get rescoreTopN() {
-    return envInt('TECHNOW_RESCORE_TOP_N', 9);
+    return envInt('TECHNOW_RESCORE_TOP_N', 15);
   },
 
   /** 그룹핑 프롬프트에 넣을 "최근 발행 기사 제목"의 기간. env: TECHNOW_FOLLOW_UP_WINDOW_DAYS */

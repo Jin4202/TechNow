@@ -20,6 +20,14 @@ function projection(costFixed: number, costVariable: number, articlesBuilt: numb
   return projectMonthlyCost({ costFixed, costVariable, articlesBuilt });
 }
 
+/**
+ * 예산을 확실히 넘기는 하루치 비용.
+ *
+ * 리터럴로 두면 예산을 바꿀 때마다 이 파일이 깨진다 (실제로 $25 → $40 에서 깨졌다).
+ * 경보가 검사하는 것은 "예산 대비" 이지 특정 금액이 아니다.
+ */
+const OVER_BUDGET_PER_DAY = (budget.monthlyUsd * 1.2) / 30;
+
 describe('dailyAlerts — 예산 (7.5)', () => {
   it('예산의 80% 를 넘으면 알린다', () => {
     const perDay = (budget.monthlyUsd * budget.alertRatio) / 30;
@@ -46,7 +54,7 @@ describe('dailyAlerts — 예산 (7.5)', () => {
   it('예산을 env 로 올리면 경보도 따라 올라간다', () => {
     // 실측이 쌓여 예산을 조정할 때 코드를 고치지 않아도 된다 (D-36)
     const before = dailyAlerts({
-      projection: projection(1.0, 0, 1),
+      projection: projection(OVER_BUDGET_PER_DAY, 0, 1),
       articlesBuilt: 1,
       buildAttempts: 1,
     });
@@ -78,7 +86,7 @@ describe('dailyAlerts — 기사 0건', () => {
 
   it('원인이 둘이면 알림도 둘이다', () => {
     const alerts = dailyAlerts({
-      projection: projection(1.0, 0, 0),
+      projection: projection(OVER_BUDGET_PER_DAY, 0, 0),
       articlesBuilt: 0,
       buildAttempts: 3,
     });
