@@ -56,6 +56,8 @@ export interface PendingArticle {
   sections: ArticleSection[];
   /** 이미 있는 번역본의 언어 */
   locales: Locale[];
+  /** 이미 있는 커버 이미지 */
+  coverImageUrl: string | null;
 }
 
 /**
@@ -78,7 +80,7 @@ export async function articlesAwaitingAssets(
 ): Promise<PendingArticle[]> {
   const { data, error } = await db
     .from('articles')
-    .select('id, title, one_line_summary, body, article_translations(locale)')
+    .select('id, title, one_line_summary, body, cover_image_url, article_translations(locale)')
     .eq('status', 'ready_pending')
     .order('created_at', { ascending: true })
     .limit(limit);
@@ -91,6 +93,7 @@ export async function articlesAwaitingAssets(
     oneLineSummary: row.one_line_summary,
     sections: (row.body as unknown as { sections: ArticleSection[] }).sections,
     locales: row.article_translations.map((t) => t.locale),
+    coverImageUrl: row.cover_image_url,
   }));
 }
 
@@ -100,6 +103,21 @@ export async function articlesAwaitingAssets(
  * `ready_pending` 인 행만 건드린다. 이미 발행된 기사를 되돌리는 경로를
  * 만들지 않기 위해서다 (CLAUDE.md §2.2 — 발행된 기사는 수정하지 않는다).
  */
+export async function saveCoverImageUrl(
+  db: ServiceClient,
+  articleId: string,
+  url: string,
+): Promise<void> {
+  // 발행 전 기사에만 붙인다. 발행된 기사는 수정하지 않는다 (CLAUDE.md §2.2)
+  const { error } = await db
+    .from('articles')
+    .update({ cover_image_url: url })
+    .eq('id', articleId)
+    .neq('status', 'published');
+
+  if (error) throw new Error(`커버 이미지 저장 실패: ${error.message}`);
+}
+
 export async function markArticleReady(db: ServiceClient, articleId: string): Promise<boolean> {
   const { data, error } = await db
     .from('articles')

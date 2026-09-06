@@ -32,6 +32,7 @@ import { selectTopics, summarizeSelection } from '@/pipeline/score/select-topics
 import { createFetchContext } from '@/pipeline/research/fetch-page';
 
 import type { AnthropicClient } from '@/clients/anthropic';
+import type { FalClient } from '@/clients/fal';
 import type { ServiceClient } from '@/db/supabase/service';
 import type { BuildTopicInput, BuildTopicResult } from '@/pipeline/build-topic';
 import type { FeedFailure } from '@/pipeline/discover/fetch-feeds';
@@ -92,6 +93,7 @@ function triggerUrl(topic: Topic): string {
 export async function runDailyDiscovery(
   db: ServiceClient,
   claude: AnthropicClient,
+  fal: FalClient,
   options: DailyRunOptions,
 ): Promise<DailyRunResult> {
   const runId = await startRun(db, 'daily');
@@ -103,7 +105,7 @@ export async function runDailyDiscovery(
     //
     // 오늘 기사를 만들기 **전**에 한다. 어제 번역에 실패한 기사가 오늘 아침
     // 발행에 들어가야 하고, 오늘 작업이 어디서 막히든 어제 것은 이미 끝나 있어야 한다
-    const sweep = await sweepPendingAssets(db, claude, { onInfo: info });
+    const sweep = await sweepPendingAssets(db, claude, fal, { onInfo: info });
     if (sweep.scanned > 0) {
       info('대기 기사 자산 스윕', {
         scanned: sweep.scanned,
@@ -203,6 +205,8 @@ export async function runDailyDiscovery(
     // 스윕의 번역 비용도 변동비다. 기사에 붙는 비용이므로 기사당 단가에 들어가야 한다
     let variableSonnet: TokenUsage = sweep.usage;
     let buildAttempts = 0;
+    // 스윕이 만든 이미지도 이 런의 비용이다
+    let imagesGenerated = sweep.imagesGenerated;
     let searchCalls = 0;
     let pagesFetched = rescore.pagesFetched;
 
@@ -231,6 +235,7 @@ export async function runDailyDiscovery(
       variableSonnet = addUsage(variableSonnet, result.usageSonnet);
       searchCalls += result.searchCalls;
       pagesFetched += result.pagesFetched;
+      imagesGenerated += result.imagesGenerated ?? 0;
 
       if (result.articleId) {
         articleIdByIndex.set(index, result.articleId);
@@ -321,6 +326,7 @@ export async function runDailyDiscovery(
       articles_published: 0, // 발행은 별도 스케줄이 한다 (D-04)
       cost_search_calls: searchCalls,
       cost_pages_fetched: pagesFetched,
+      cost_images: imagesGenerated,
       cost_input_tokens: fixedUsage.inputTokens + variableUsage.inputTokens,
       cost_output_tokens: fixedUsage.outputTokens + variableUsage.outputTokens,
       cost_cached_tokens: fixedUsage.cacheReadTokens + variableUsage.cacheReadTokens,

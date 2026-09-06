@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { getAnthropic } from '@/clients/anthropic';
 import { BraveClient } from '@/clients/brave';
+import { FalClient } from '@/clients/fal';
 import { thresholds } from '@/config/thresholds';
 import { recentRunCosts } from '@/db/pipeline-runs';
 import { createServiceClient } from '@/db/supabase/service';
@@ -15,6 +16,7 @@ import { runDailyDiscovery } from '@/pipeline/run-daily';
 const db = createServiceClient();
 const claude = getAnthropic();
 const brave = new BraveClient();
+const fal = new FalClient();
 
 async function wipe() {
   await db.from('run_topics').delete().not('id', 'is', null);
@@ -30,9 +32,9 @@ afterAll(wipe);
 
 describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
   it('수집부터 기사 생성까지 돈다', async () => {
-    const r = await runDailyDiscovery(db, claude, {
+    const r = await runDailyDiscovery(db, claude, fal, {
       // 테스트에서는 자식 태스크 대신 직접 부른다 (CLAUDE.md §3)
-      buildTopic: (input) => buildTopic(db, claude, brave, input),
+      buildTopic: (input) => buildTopic(db, claude, brave, fal, input),
     });
 
     console.log(`\n수집 ${r.uniqueItems} → 후보 ${r.candidates} → 토픽 ${r.topics}`);
@@ -152,7 +154,7 @@ describe('일간 파이프라인 전체 (3.12, 3.13, 3.15)', () => {
     expect(afterPublish!.held_back_count).toBe(1);
 
     // 다음 런의 스윕이 번역을 다시 만들어 발행 대기로 올린다
-    const sweep = await sweepPendingAssets(db, claude);
+    const sweep = await sweepPendingAssets(db, claude, fal);
     console.log(`\n스윕: 훑음 ${sweep.scanned}, 승격 ${sweep.promoted}`);
     expect(sweep.promoted).toBeGreaterThan(0);
 

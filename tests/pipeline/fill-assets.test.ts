@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fillAssets } from '@/pipeline/fill-assets';
 
 import type { AnthropicClient } from '@/clients/anthropic';
+import type { FalClient } from '@/clients/fal';
 import type { ServiceClient } from '@/db/supabase/service';
 
 /**
@@ -24,7 +25,24 @@ const article = {
     },
   ],
   locales: [] as string[],
+  coverImageUrl: null as string | null,
 };
+
+/** 이미지를 만들지 않는 가짜 fal. 커버가 필수가 아닌 Phase 에서는 불리지 않는다 */
+function fakeFal(behaviour: 'ok' | 'fail' = 'ok') {
+  const calls: string[] = [];
+
+  const fal = {
+    imageCount: 0,
+    generate: async (_model: string, prompt: string) => {
+      calls.push(prompt);
+      if (behaviour === 'fail') throw new Error('HTTP 500');
+      return { url: 'https://fal.test/image.jpg', width: 1024, height: 576, contentType: 'image/jpeg' };
+    },
+  };
+
+  return { fal: fal as unknown as FalClient, calls };
+}
 
 /** 번역 응답을 정해 주는 가짜 Claude. 호출 수를 센다 */
 function fakeClaude(outputs: unknown[]) {
@@ -102,7 +120,7 @@ describe('fillAssets', () => {
     const { db, inserted, promoted } = fakeDb();
     const { claude } = fakeClaude([goodTranslation]);
 
-    const result = await fillAssets(db, claude, article);
+    const result = await fillAssets(db, claude, fakeFal().fal, article);
 
     expect(result.ready).toBe(true);
     expect(result.filled).toEqual(['korean_translation']);
@@ -116,7 +134,7 @@ describe('fillAssets', () => {
     const { db, inserted, promoted } = fakeDb();
     const { claude, calls } = fakeClaude([broken]);
 
-    const result = await fillAssets(db, claude, article);
+    const result = await fillAssets(db, claude, fakeFal().fal, article);
 
     expect(result.ready, '실패한 기사는 그날 아침 발행에서 빠진다').toBe(false);
     expect(result.failures[0]?.asset).toBe('korean_translation');
@@ -131,7 +149,7 @@ describe('fillAssets', () => {
     const { db, promoted } = fakeDb();
     const { claude, calls } = fakeClaude([broken, goodTranslation]);
 
-    const result = await fillAssets(db, claude, article);
+    const result = await fillAssets(db, claude, fakeFal().fal, article);
 
     expect(result.ready).toBe(true);
     expect(promoted).toEqual(['article-1']);
@@ -144,7 +162,7 @@ describe('fillAssets', () => {
     const { db, promoted } = fakeDb();
     const { claude, calls } = fakeClaude([goodTranslation]);
 
-    const result = await fillAssets(db, claude, { ...article, locales: ['ko'] });
+    const result = await fillAssets(db, claude, fakeFal().fal, { ...article, locales: ['ko'] });
 
     expect(calls).toHaveLength(0);
     expect(result.ready).toBe(true);

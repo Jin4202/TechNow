@@ -2,6 +2,7 @@ import { logger, task } from '@trigger.dev/sdk';
 
 import { getAnthropic } from '@/clients/anthropic';
 import { BraveClient } from '@/clients/brave';
+import { FalClient } from '@/clients/fal';
 import { createServiceClient } from '@/db/supabase/service';
 import { buildTopic, type BuildTopicInput } from '@/pipeline/build-topic';
 
@@ -25,6 +26,7 @@ export const buildArticleTask = task({
       createServiceClient(),
       getAnthropic(),
       new BraveClient(),
+      new FalClient(),
       payload,
     );
 

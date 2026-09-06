@@ -9,6 +9,7 @@ import { buildArticle, type BuildFailure } from '@/pipeline/write/build-article'
 import { makeSlug } from '@/pipeline/write/slug';
 
 import type { BraveClient } from '@/clients/brave';
+import type { FalClient } from '@/clients/fal';
 import type { ServiceClient } from '@/db/supabase/service';
 import type { PromptSource } from '@/prompts/grounded-steps';
 
@@ -55,8 +56,10 @@ export interface BuildTopicResult {
   usageHaiku: TokenUsage;
   usageSonnet: TokenUsage;
 
-  /** 만든 필수 자산 (4.4). 번역이 여기 들어온다 */
+  /** 만든 필수 자산 (4.4, 5.5). 번역과 커버 이미지가 여기 들어온다 */
   assetsFilled?: string[];
+  /** 만든 이미지 수. 비용 로그의 cost_images (D-07) */
+  imagesGenerated?: number;
   /** 자산을 못 채워 발행 대기로 남았는가 */
   awaitingAssets?: boolean;
 }
@@ -77,6 +80,7 @@ export async function buildTopic(
   db: ServiceClient,
   claude: AnthropicClient,
   brave: BraveClient,
+  fal: FalClient,
   input: BuildTopicInput,
 ): Promise<BuildTopicResult> {
   // ── 조사 ────────────────────────────────────────────────
@@ -177,12 +181,13 @@ export async function buildTopic(
   // 스윕이 다시 시도한다 (기획서 §2.3). 여기서 실패로 뒤집으면 조사·작성 비용을
   // 버리고 처음부터 다시 하게 된다
   const assets = articleId
-    ? await fillAssets(db, claude, {
+    ? await fillAssets(db, claude, fal, {
         id: articleId,
         title: built.article.title,
         oneLineSummary: built.article.oneLineSummary,
         sections: built.article.sections,
         locales: [],
+        coverImageUrl: null,
       })
     : null;
 
@@ -198,5 +203,6 @@ export async function buildTopic(
     usageSonnet: assets ? addUsage(usageSonnet, assets.usage) : usageSonnet,
     assetsFilled: assets?.filled ?? [],
     awaitingAssets: assets ? !assets.ready : false,
+    imagesGenerated: assets?.imagesGenerated ?? 0,
   };
 }

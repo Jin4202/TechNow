@@ -1,6 +1,7 @@
 import { logger, schedules } from '@trigger.dev/sdk';
 
 import { getAnthropic, ZERO_USAGE } from '@/clients/anthropic';
+import { FalClient } from '@/clients/fal';
 import { createServiceClient } from '@/db/supabase/service';
 import { runDailyDiscovery } from '@/pipeline/run-daily';
 
@@ -36,7 +37,7 @@ export const dailyPipeline = schedules.task({
       timezone: payload.timezone,
     });
 
-    const result = await runDailyDiscovery(createServiceClient(), getAnthropic(), {
+    const result = await runDailyDiscovery(createServiceClient(), getAnthropic(), new FalClient(), {
       // 토픽마다 자식 태스크. 실패해도 부모는 다음 순위로 내려간다 (D-21)
       buildTopic: async (input): Promise<BuildTopicResult> => {
         const run = await buildArticleTask.triggerAndWait(input);
