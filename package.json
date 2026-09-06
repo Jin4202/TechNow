@@ -31,6 +31,8 @@
     "evaluate": "vitest run --config vitest.live.config.mts tests/live/evaluate.live.ts",
     "articles:read": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/read-articles.live.ts",
     "translate:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/translate.live.ts",
+    "covers:bakeoff": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cover-bakeoff.live.ts",
+    "covers:upload": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/upload-cover.live.ts",
     "cost:report": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cost-report.live.ts"
   },
   "dependencies": {
