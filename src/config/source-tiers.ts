@@ -37,7 +37,12 @@ export const tier1Domains: readonly string[] = [
   'doi.org',
   // 전문 학회 — 학회 발표와 학술지를 낸다
   'aasm.org', 'thoracic.org', 'heart.org', 'asco.org', 'aan.com', 'acc.org',
-  'ashg.org', 'aaas.org',
+  'ashg.org', 'aaas.org', 'alz.org',
+  // 의료·연구 기관. 자체 연구 발표를 낸다.
+  // **관측으로 추가했다** (2026-09-06, `pnpm sources:coverage`): 알츠하이머와
+  // psilocybin 토픽에서 이들이 전부 unknown 으로 잘려 조사가 3건을 못 채웠다.
+  // 이 파일 헤더가 예고한 "의학·바이오가 얇다" 가 그대로 나타났다
+  'mayoclinic.org', 'hopkinsmedicine.org', 'mdanderson.org',
   // 우주 기관
   'nasa.gov', 'esa.int', 'jaxa.jp', 'isro.gov.in', 'spacex.com', 'blueorigin.com',
   // 연구소
@@ -74,6 +79,13 @@ export const tier2Domains: readonly string[] = [
   'scientificamerican.com', 'quantamagazine.org', 'newscientist.com',
   'wired.com', 'theverge.com', 'nikkei.com', 'dw.com', 'aljazeera.com',
   'space.com', 'sciencenews.org', 'chemistryworld.com', 'statnews.com',
+  // **관측으로 추가했다** (2026-09-06, `pnpm sources:coverage`).
+  // 실패한 4개 토픽의 검색 결과 72건 중 tier 를 통과한 것이 20건(28%)뿐이었고,
+  // 버려진 42종 안에 아래가 있었다. 전부 기명 보도를 하는 곳이다
+  'cnn.com', 'nbcnews.com', 'usatoday.com', 'independent.co.uk',
+  'nationalgeographic.com', 'livescience.com', 'thehindu.com', 'straitstimes.com',
+  // 우주 전문 — 기명 보도. 우주 토픽에서 반복적으로 잘렸다
+  'universetoday.com', 'nasaspaceflight.com', 'aviationweek.com', 'earthsky.org',
 ] as const;
 
 /**
@@ -88,6 +100,11 @@ export const blockedDomains: readonly string[] = [
   // 애그리게이터·재게시
   'phys.org', 'sciencedaily.com', 'news.google.com', 'techmeme.com',
   'sciencealert.com', 'interestingengineering.com', 'zmescience.com',
+  // 같은 성격인데 목록에 없어 unknown 으로만 걸리던 곳들 (2026-09-06 관측).
+  // **동작은 그대로다** — 이미 배제되고 있었다. 의도를 명시해서 나중에 누가
+  // tier 2 로 잘못 올리는 것을 막고, 커버리지 리포트의 "넓힐 곳" 목록에서 뺀다
+  'scitechdaily.com', 'dailygalaxy.com', 'news-medical.net',
+  'medicalnewstoday.com', 'knowridge.com', 'earth.com',
   // 포럼·소셜
   'reddit.com', 'x.com', 'twitter.com', 'facebook.com', 'linkedin.com',
   'news.ycombinator.com', 'quora.com', 'stackexchange.com', 'stackoverflow.com',

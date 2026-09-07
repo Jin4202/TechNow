@@ -1241,6 +1241,52 @@ Ultra 는 무너지지 않았다. schnell → Ultra 로 바꾼다.
 **모델을 config 로 뺐다** (`src/config/covers.ts`). `fill-assets.ts` 가 하드코딩하고
 있었는데, 모델을 바꾸려고 파이프라인 로직을 고치는 것은 CLAUDE.md §2.4 위반이다.
 
+### D-53. 출처 허용목록을 실측으로 넓혔다 — 조사 실패의 주원인
+
+2026-09-06. 종단 런에서 실패 6건 중 **4건이 `too-few-sources`** 였다.
+근거 실패는 2건뿐이라 GROUNDING(D-47)은 잘 버티는데 조사가 재료를 못 대고 있었다.
+
+`source-tiers.ts` 헤더가 이미 절차를 적어뒀다 — "추측으로 늘리지 말고 **실제로
+걸러진 도메인을 보고** 근거와 함께 추가한다." 그 절차를 도구로 만들었다
+(`pnpm sources:coverage`, LLM 없음·Brave 무료라 **비용 0**).
+
+실패한 4개 토픽으로 깔때기를 재니:
+
+| | 이전 | 이후 |
+|---|---|---|
+| 검색 결과 | 72건 | 72건 |
+| **tier 통과** | **20건 (28%)** | **38건 (53%)** |
+| 본문 확보 | 15건 (75%) | 28건 (74%) |
+| **종단** | **21%** | **39%** |
+
+토픽별 본문 확보: 7·3·3·**2** → 12·6·5·**5**. 화성 마그마가 최소선 3건을
+못 채워 실패했는데 이제 여유가 생겼다.
+
+**병목은 tier 허용목록이었다** (72% 손실). 추출은 75%가 살아남아 상대적으로 건강하다.
+
+버려진 42종 중 자격 있는 것들을 근거와 함께 추가했다:
+
+- **Tier 1** `mayoclinic.org` `hopkinsmedicine.org` `mdanderson.org` `alz.org`
+  — 헤더가 예고한 "의학·바이오가 얇다" 가 그대로 나타났다. 알츠하이머와
+  psilocybin 토픽에서 이들이 통째로 잘렸다
+- **Tier 2** `cnn.com` `nbcnews.com` `usatoday.com` `independent.co.uk`
+  `nationalgeographic.com` `livescience.com` `thehindu.com` `straitstimes.com`
+  + 우주 전문 `universetoday.com` `nasaspaceflight.com` `aviationweek.com` `earthsky.org`
+- **차단으로 명시** `scitechdaily.com` `dailygalaxy.com` `news-medical.net`
+  `medicalnewstoday.com` `knowridge.com` `earth.com` — 보도자료 재게시라
+  phys.org 와 같은 성격이다. **동작은 안 바뀐다**(이미 unknown 으로 배제됐다).
+  의도를 명시해 나중에 tier 2 로 잘못 올리는 것을 막고, 커버리지 리포트의
+  "넓힐 곳" 목록에서 뺀다
+
+**이것은 품질을 낮추는 변경이 아니다.** 잘못 배제되던 정당한 출처를 되찾는 것이고
+`minSources` 는 3 그대로다. 최소 출처를 낮추자는 안은 채택하지 않았다 —
+3건은 교차 확인의 최소선이고, 얇아지면 근거 검증이 잡던 것을 놓친다.
+
+**남은 관찰**: 이번 측정에서 **토픽 제목을 그대로 검색어로 썼는데** 4건 중 3건이
+3건 이상을 채웠다. 실제 런은 LLM 이 만든 전문적 쿼리 3개를 쓰는데 그때는 1~2건이었다.
+"무슨 일이 있었나" 라는 평범한 질문이 전문 쿼리보다 잘 먹혔을 가능성이 있다 —
+쿼리 생성 재검토가 다음 후보다 (사용자 제안 1번의 취지).
+
 ---
 
 ## 미기록 (해당 태스크에서 확인 후 추가할 것)
