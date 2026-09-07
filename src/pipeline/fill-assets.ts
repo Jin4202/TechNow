@@ -131,7 +131,7 @@ export async function fillAssets(
  * **상한은 여기서 건다** (CLAUDE.md §2.6). `budget.imagesPerArticle` 이 1 이고
  * 재시도까지 최대 2장이다 — 재시도가 상한을 우회하면 상한이 아니다.
  */
-export async function illustrateWithRetry(
+async function illustrateWithRetry(
   db: ServiceClient,
   claude: AnthropicClient,
   fal: FalClient,
