@@ -9,7 +9,11 @@ import {
   PRICING,
 } from '@/config/models';
 import { thresholds } from '@/config/thresholds';
-import { projectMonthlyCost, type CostProjection } from '@/pipeline/cost-projection';
+import {
+  projectMonthlyCost,
+  variableCostUsd,
+  type CostProjection,
+} from '@/pipeline/cost-projection';
 import { sweepPendingAssets, type SweepResult } from '@/pipeline/fill-assets';
 import { recentPublishedArticles } from '@/db/articles';
 import { finishRun, startRun } from '@/db/pipeline-runs';
@@ -306,10 +310,13 @@ export async function runDailyDiscovery(
     const fixedUsage = addUsage(addUsage(grouping.usage, scoring.usage), rescore.usage);
     const multipliers = { cacheRead: CACHE_READ_MULTIPLIER, cacheWrite: CACHE_WRITE_MULTIPLIER };
     const costFixed = estimateCost(fixedUsage, PRICING[MODEL_HAIKU], multipliers);
-    // 변동비: 조사~작성. 쿼리 생성만 Haiku 라 단가를 나눠 계산한다
-    const costVariable =
-      estimateCost(variableHaiku, PRICING[MODEL_HAIKU], multipliers) +
-      estimateCost(variableSonnet, PRICING[MODEL_SONNET], multipliers);
+    // 변동비: 조사~작성 + 커버 이미지. 산수는 cost-projection 이 갖는다 —
+    // 여기 두면 테스트가 DB 없이는 못 돈다
+    const costVariable = variableCostUsd({
+      haiku: variableHaiku,
+      sonnet: variableSonnet,
+      imagesGenerated,
+    });
     const variableUsage = addUsage(variableHaiku, variableSonnet);
 
     const projection = projectMonthlyCost({

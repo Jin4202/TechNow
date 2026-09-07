@@ -21,9 +21,10 @@ import { IMAGE_MODELS, IMAGE_PRICING, type ImageModel } from '@/clients/fal';
  * 사용자가 정한 이미지 예산 $8 을 상한에서 넘는다. 최근 실측인 하루 2~3편에서는
  * $3.6~5.4 다. 편수가 상한에 붙으면 다시 판단한다.
  *
- * ⚠️ **`cost_images` 는 개수만 저장하고 달러로 환산하지 않는다** (D-49).
- * 즉 `projectMonthlyCost` 의 월 추정에 이미지 비용이 안 잡혀 있다.
- * schnell 시절에는 월 $0.45 라 무시할 수 있었지만 이제는 아니다.
+ * 이미지 비용은 **변동비에 잡힌다** (`variableCostUsd`, 2026-09-07에 고쳤다).
+ * 그 전에는 `cost_images` 에 장수만 저장하고 달러로 환산하지 않아 월 추정에서
+ * 통째로 빠져 있었다 — schnell 시절 월 $0.45 라 넘어갔지만 20배가 되면서
+ * 계기가 고장난 상태가 됐다.
  */
 export const coverModel: ImageModel = IMAGE_MODELS.fluxProUltra;
 

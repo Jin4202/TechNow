@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { budget } from '@/config/budget';
-import { projectMonthlyCost } from '@/pipeline/cost-projection';
+import { coverUsdPerImage } from '@/config/covers';
+import { projectMonthlyCost, variableCostUsd } from '@/pipeline/cost-projection';
 
 /**
  * D-07 의 예산 계산식을 고정한다.
@@ -49,5 +50,41 @@ describe('projectMonthlyCost', () => {
   it('예산 이내면 알리지 않는다', () => {
     const p = projectMonthlyCost({ costFixed: 0.16, costVariable: 0.36, articlesBuilt: 3 });
     expect(p.shouldAlert).toBe(false);
+  });
+});
+
+/**
+ * 변동비에 이미지가 들어가는지 (2026-09-07).
+ *
+ * 예전에는 `cost_images` 에 장수만 저장하고 달러로 환산하지 않아 월 추정에서
+ * 통째로 빠져 있었다 (D-49, D-52). schnell 시절 월 $0.45 라 무시할 수 있었는데
+ * Ultra 로 바꾸며 장당 20배가 됐다. **틀린 계기로 최적화하면 엉뚱한 곳을 고친다.**
+ */
+describe('variableCostUsd', () => {
+  const none = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 };
+
+  it('이미지가 변동비에 잡힌다', () => {
+    const withImages = variableCostUsd({ haiku: none, sonnet: none, imagesGenerated: 5 });
+
+    expect(withImages, '이미지만 있어도 0 이 아니다').toBeGreaterThan(0);
+    expect(withImages).toBeCloseTo(5 * coverUsdPerImage, 6);
+  });
+
+  it('토큰 비용에 더해진다 — 덮어쓰지 않는다', () => {
+    const tokens = { ...none, inputTokens: 10_000, outputTokens: 5_000 };
+    const noImage = variableCostUsd({ haiku: tokens, sonnet: tokens, imagesGenerated: 0 });
+    const oneImage = variableCostUsd({ haiku: tokens, sonnet: tokens, imagesGenerated: 1 });
+
+    expect(noImage).toBeGreaterThan(0);
+    expect(oneImage - noImage).toBeCloseTo(coverUsdPerImage, 6);
+  });
+
+  it('모델별 단가를 나눠 쓴다 — 합쳐서 한 단가로 계산하지 않는다', () => {
+    // 같은 사용량이면 Sonnet 이 Haiku 보다 비싸다. 합산하면 이 차이가 사라진다
+    const tokens = { ...none, inputTokens: 1_000_000, outputTokens: 0 };
+    const haikuOnly = variableCostUsd({ haiku: tokens, sonnet: none, imagesGenerated: 0 });
+    const sonnetOnly = variableCostUsd({ haiku: none, sonnet: tokens, imagesGenerated: 0 });
+
+    expect(sonnetOnly).toBeGreaterThan(haikuOnly);
   });
 });

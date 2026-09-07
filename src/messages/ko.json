@@ -34,7 +34,7 @@
     "laterCoverage": "이후 기사",
     "tier": "Tier {tier}",
     "coverNotice": "AI로 생성한 이미지입니다",
-    "coverBadge": "AI"
+    "coverBadge": "AI Generated"
   },
   "scraps": {
     "scrap": "스크랩",
