@@ -32,7 +32,9 @@
     "sectionSources": "Sources {numbers}",
     "follows": "Follows",
     "laterCoverage": "Later coverage",
-    "tier": "Tier {tier}"
+    "tier": "Tier {tier}",
+    "coverNotice": "AI-generated image",
+    "coverBadge": "AI"
   },
   "scraps": {
     "scrap": "Save",

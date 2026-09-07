@@ -20,21 +20,39 @@ import { z } from 'zod';
  * 그 자리는 실제로 부를 수 있는 모델로 채운다.
  */
 export const IMAGE_MODELS = {
-  /** 기본 후보. 장당 약 $0.003, Apache 2.0 (기획서 §7) */
+  /** 5.1 의 기본값. 장당 $0.003 이지만 사진 품질이 안 나온다 */
   fluxSchnell: 'fal-ai/flux/schnell',
   /** 벡터·플랫 일러스트에 강한 대안 */
   recraftV3: 'fal-ai/recraft-v3',
   /** 디자인·일러스트 대안 */
   ideogramV2: 'fal-ai/ideogram/v2',
+
+  // ── 사진 품질 후보 (7.9, 2026-09-06) ──────────────────────
+  // 사용자가 "사진 같은 그림체" 를 요청했고 이미지 예산을 월 $8 로 잡았다.
+  // 셋 다 이 계정에서 호출된다 (빈 payload 에 422 = 엔드포인트 존재, 2026-09-06 실측)
+  /** schnell 의 상위. 같은 계열이라 프롬프트 반응이 예측 가능하다 */
+  fluxDev: 'fal-ai/flux/dev',
+  /** 사진 품질 상위. 인물·질감이 강하다 */
+  fluxProUltra: 'fal-ai/flux-pro/v1.1-ultra',
+  /** 최신 세대. 프롬프트 이해도가 높다는 평 */
+  seedreamV4: 'fal-ai/bytedance/seedream/v4/text-to-image',
 } as const;
 
 export type ImageModel = (typeof IMAGE_MODELS)[keyof typeof IMAGE_MODELS];
 
-/** 장당 단가 (USD). 비용 로그(D-07)의 `cost_images` 용 */
+/**
+ * 장당 단가 (USD). 비용 로그(D-07)의 `cost_images` 용.
+ *
+ * ⚠️ 사진 품질 후보 셋의 값은 **fal 공개 가격표 기준의 추정치다.**
+ * 청구서로 확인하기 전까지는 추정으로 다룬다 — 예산 계산이 이 값에 걸려 있다.
+ */
 export const IMAGE_PRICING: Record<ImageModel, number> = {
   [IMAGE_MODELS.fluxSchnell]: 0.003,
   [IMAGE_MODELS.recraftV3]: 0.04,
   [IMAGE_MODELS.ideogramV2]: 0.08,
+  [IMAGE_MODELS.fluxDev]: 0.025,
+  [IMAGE_MODELS.fluxProUltra]: 0.06,
+  [IMAGE_MODELS.seedreamV4]: 0.03,
 };
 
 const ImageSchema = z.object({

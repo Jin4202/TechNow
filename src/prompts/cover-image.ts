@@ -15,28 +15,38 @@
 /**
  * 모든 커버가 공유하는 화풍.
  *
- * 선택의 이유:
- *   - **텍스트 없음**: Flux schnell 은 글자를 제대로 못 쓴다. 잘못 쓴 글자가
- *     박힌 커버는 없느니만 못하다 (기획서 §7 — "no text rendering needed for covers")
- *   - **얼굴 없음**: 실존 인물 금지(CLAUDE.md §5)의 위험은 얼굴에서 온다.
- *     실루엣·뒷모습·상체는 누구도 닮지 않는다 (D-38)
- *   - **사진이 아닌 일러스트**: 사진처럼 보이는 이미지는 실제 사건의 사진으로
- *     오해된다. 우리 기사에는 실제 사진이 없다
+ * **평면 벡터 일러스트 → 사진 품질로 바꿨다** (2026-09-06, D-52, 사용자 결정).
+ *
+ * ⚠️ D-38 은 사진 화풍을 **일부러 피했다**: "사진처럼 보이는 이미지는 실제 사건의
+ * 사진으로 오해된다 — 우리 기사에는 실제 사진이 없다." 그 위험을 사용자에게
+ * 제기했고 사용자가 사진 품질을 택했다. 위험은 없어지지 않았으므로 **카드에
+ * 일러스트 표기를 붙여** 상쇄한다 (`components/article-card`).
+ *
+ * 바뀌지 않는 것 (CLAUDE.md §5 — 화풍의 문제가 아니다):
+ *   - **글자 없음**: 아직 글자를 100% 정확히 쓰는 모델이 없다
+ *   - **얼굴 없음**: 실존 인물 금지의 위험은 얼굴에서 온다. 사진 화풍에서는
+ *     이 위험이 오히려 커진다 — 그럴듯한 얼굴은 실존 인물처럼 읽힌다
+ *   - **로고·브랜드 없음**
+ *
+ * 사진 화풍에서 새로 필요해진 것:
+ *   - **실제 사건의 기록처럼 보이지 않게** 한다. 기자회견장·사고 현장·특정
+ *     실험실을 재현하면 "이것이 그 현장 사진" 으로 읽힌다. 연출된 정물·매크로·
+ *     구조 사진은 그렇게 읽히지 않는다
+ *   - 배경색을 못 박던 지시는 뺀다. 사진에서 단색 배경을 강요하면 스톡 이미지처럼
+ *     된다. 대신 **일관된 조명과 톤**으로 목록의 통일감을 만든다
  */
 export const STYLE_PREFIX = [
-  'Editorial illustration for a science and technology news site.',
-  'Flat vector illustration, geometric shapes, clean edges, calm composition.',
-  // 배경색을 못 박는다. 1차 실측에서 "muted palette" 만으로는 크림색 배경이 나왔고,
-  // 목록에 카드가 나란히 놓이면 한 장만 밝은 것이 바로 눈에 띈다
-  'Deep navy background (#1e293b), slate grey shapes, one warm amber accent.',
-  // "하나의 사물" 을 요구하면 비유·미래 장면(D-38 의 2·3번)을 그릴 수 없다.
-  // 화면이 산만해지는 것만 막는다
-  'A single clear focal point.',
-  'No text, no letters, no numbers, no logos, no watermarks.',
-  // 실존 인물 위험은 얼굴에서 온다 (CLAUDE.md §5). 얼굴이 없으면 사람이 있어도 된다 —
-  // "이 연구가 삶을 어떻게 바꾸나" 를 사람 없이 그리기는 어렵다
-  'No faces. Figures may appear as flat silhouettes, seen from behind, or cropped below the face.',
-  'Not photorealistic. No 3D render, no shading gradients, no lens flare, no stock-photo look.',
+  'Editorial cover photograph for a science and technology magazine.',
+  'Photorealistic, shot on a full-frame camera with a prime lens, shallow depth of field, fine detail and natural texture.',
+  // 목록에 카드가 나란히 놓인다. 사진에서 통일감은 배경색이 아니라 조명이 만든다
+  'Consistent look across the series: low-key studio lighting, deep cool shadows, a single warm key light, muted desaturated palette.',
+  'A single clear subject, centred, with clean negative space around it.',
+  // 아래 두 줄이 "실제 취재 사진" 오해를 막는다
+  'A staged conceptual still life or a macro study of form, material, and structure — not documentary photography.',
+  'No recognisable real place, no press conference, no news scene, no reconstruction of a real event.',
+  'No text, no letters, no numbers, no logos, no watermarks, no signage.',
+  // 사진 화풍에서 얼굴 위험이 커진다 — 그럴듯한 얼굴은 실존 인물처럼 읽힌다
+  'No faces and no identifiable people. Figures may appear only as distant silhouettes, from behind, or cropped below the shoulders.',
 ].join(' ');
 
 /**

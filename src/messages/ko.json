@@ -32,7 +32,9 @@
     "sectionSources": "출처 {numbers}",
     "follows": "이전 기사",
     "laterCoverage": "이후 기사",
-    "tier": "Tier {tier}"
+    "tier": "Tier {tier}",
+    "coverNotice": "AI로 생성한 이미지입니다",
+    "coverBadge": "AI"
   },
   "scraps": {
     "scrap": "스크랩",

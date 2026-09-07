@@ -1,5 +1,5 @@
 import { ZERO_USAGE, addUsage, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
-import { IMAGE_MODELS } from '@/clients/fal';
+
 import { requiredAssets } from '@/config/required-assets';
 import {
   articlesAwaitingAssets,
@@ -11,6 +11,7 @@ import {
 import { chooseCoverConcept } from '@/pipeline/illustrate/choose-concept';
 import { uploadCover } from '@/pipeline/illustrate/upload-cover';
 import { translateArticle } from '@/pipeline/translate/translate-article';
+import { coverModel } from '@/config/covers';
 import { buildCoverPrompt } from '@/prompts/cover-image';
 
 import type { FalClient } from '@/clients/fal';
@@ -157,7 +158,7 @@ async function illustrateWithRetry(
 
     let generatedUrl: string;
     try {
-      const image = await fal.generate(IMAGE_MODELS.fluxSchnell, buildCoverPrompt(chosen.concept.scene));
+      const image = await fal.generate(coverModel, buildCoverPrompt(chosen.concept.scene));
       generatedUrl = image.url;
       images += 1;
     } catch (error) {
