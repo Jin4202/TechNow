@@ -15,38 +15,39 @@
 /**
  * 모든 커버가 공유하는 화풍.
  *
- * **평면 벡터 일러스트 → 사진 품질로 바꿨다** (2026-09-06, D-52, 사용자 결정).
+ * **평면 벡터 → 사진 → 시네마틱 3D 렌더** (2026-09-06, D-52, 사용자 결정 두 번).
  *
- * ⚠️ D-38 은 사진 화풍을 **일부러 피했다**: "사진처럼 보이는 이미지는 실제 사건의
- * 사진으로 오해된다 — 우리 기사에는 실제 사진이 없다." 그 위험을 사용자에게
- * 제기했고 사용자가 사진 품질을 택했다. 위험은 없어지지 않았으므로 **카드에
- * 일러스트 표기를 붙여** 상쇄한다 (`components/article-card`).
+ * 사진 화풍을 한 번 돌려보고 5장을 함께 본 뒤 방향을 다시 잡았다. 사물이 주인공인
+ * 주제(위성·엔진·분자)에서는 잘 나왔지만 **풍경이 주제이면 다큐멘터리 사진으로
+ * 무너졌다** — 조류인플루엔자 기사에서 갈라진 뻘·창고·새 떼가 나왔고 실제 취재
+ * 사진과 구분되지 않았다. `no news scene` 지시를 넣었는데도 그랬다. 지시는
+ * 압력이지 보장이 아니다 (D-27).
+ *
+ * 사용자가 고른 방향은 **가장 잘 나온 두 장을 닮게** 하는 것이다 — 초파리 커넥톰의
+ * 발광 네트워크, DNA 가닥의 3D 렌더. 둘 다 "사진일 리 없는" 이미지였다.
+ * 그래서 화풍을 사진이 아니라 **명백한 CGI 렌더**로 못 박는다.
+ *
+ * **이것이 D-38 의 우려를 구조적으로 해결한다.** 사진처럼 보이지 않으면 실제 사건의
+ * 사진으로 오해될 일이 없다. 표기(카드 배지·기사 캡션)는 그대로 두지만,
+ * 이제 표기가 유일한 방어선이 아니다.
  *
  * 바뀌지 않는 것 (CLAUDE.md §5 — 화풍의 문제가 아니다):
- *   - **글자 없음**: 아직 글자를 100% 정확히 쓰는 모델이 없다
- *   - **얼굴 없음**: 실존 인물 금지의 위험은 얼굴에서 온다. 사진 화풍에서는
- *     이 위험이 오히려 커진다 — 그럴듯한 얼굴은 실존 인물처럼 읽힌다
- *   - **로고·브랜드 없음**
- *
- * 사진 화풍에서 새로 필요해진 것:
- *   - **실제 사건의 기록처럼 보이지 않게** 한다. 기자회견장·사고 현장·특정
- *     실험실을 재현하면 "이것이 그 현장 사진" 으로 읽힌다. 연출된 정물·매크로·
- *     구조 사진은 그렇게 읽히지 않는다
- *   - 배경색을 못 박던 지시는 뺀다. 사진에서 단색 배경을 강요하면 스톡 이미지처럼
- *     된다. 대신 **일관된 조명과 톤**으로 목록의 통일감을 만든다
+ * 글자 없음, 얼굴 없음, 로고 없음.
  */
 export const STYLE_PREFIX = [
-  'Editorial cover photograph for a science and technology magazine.',
-  'Photorealistic, shot on a full-frame camera with a prime lens, shallow depth of field, fine detail and natural texture.',
-  // 목록에 카드가 나란히 놓인다. 사진에서 통일감은 배경색이 아니라 조명이 만든다
-  'Consistent look across the series: low-key studio lighting, deep cool shadows, a single warm key light, muted desaturated palette.',
+  'Cinematic 3D render for a science and technology news site.',
+  'High-end CGI: physically based materials, volumetric light, glowing emissive accents, subsurface scattering, fine surface detail, shallow depth of field.',
+  // 이 한 줄이 다큐 사진으로 새는 것을 막는 핵심이다. "사진이 아니다" 가 아니라
+  // "명백히 렌더다" 라고 적극적으로 말한다 — 부정형 지시보다 잘 지켜진다
+  'Unmistakably a computer-generated render: luminous, slightly heightened, more vivid than reality. Never looks like a photograph.',
+  // 목록에 카드가 나란히 놓인다. 통일감은 배경색이 아니라 조명과 톤이 만든다
+  'Consistent look across the series: dark desaturated background, deep cool shadows, one warm amber key light, glowing highlights.',
   'A single clear subject, centred, with clean negative space around it.',
-  // 아래 두 줄이 "실제 취재 사진" 오해를 막는다
-  'A staged conceptual still life or a macro study of form, material, and structure — not documentary photography.',
-  'No recognisable real place, no press conference, no news scene, no reconstruction of a real event.',
+  // 풍경 주제에서 무너진 자리. 렌더 지시와 겹쳐서 이중으로 막는다
+  'No documentary or press photography, no real location, no reconstruction of a real event.',
   'No text, no letters, no numbers, no logos, no watermarks, no signage.',
-  // 사진 화풍에서 얼굴 위험이 커진다 — 그럴듯한 얼굴은 실존 인물처럼 읽힌다
-  'No faces and no identifiable people. Figures may appear only as distant silhouettes, from behind, or cropped below the shoulders.',
+  // 렌더 화풍에서도 얼굴은 금지다. 사실적인 얼굴은 실존 인물처럼 읽힌다
+  'No faces and no identifiable people. Figures may appear only as stylised silhouettes, from behind, or cropped below the shoulders.',
 ].join(' ');
 
 /**
