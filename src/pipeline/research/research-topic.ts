@@ -2,13 +2,14 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
 import { readUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { budget } from '@/config/budget';
+import { MAX_SOURCE_AGE_DAYS } from '@/config/filters';
 import { models } from '@/config/models';
 import { buildQueryPrompt, QUERY_SYSTEM, QueryPlanSchema } from '@/prompts/generate-queries';
 
 import { fetchPage, type FetchContext } from './fetch-page';
 import { filterSources, type SourceTier } from './source-tier';
 
-import type { BraveClient } from '@/clients/brave';
+import type { BraveClient, SearchResult } from '@/clients/brave';
 
 /**
  * 한 토픽의 출처를 모은다 (로드맵 3.5).
@@ -30,8 +31,30 @@ export interface CollectedSource {
 export type ResearchSkipReason =
   /** 검색 결과 중 쓸 만한 도메인이 없었다 */
   | 'no-usable-candidates'
+  /** 최근 출처가 하나도 없다 — 지금의 뉴스가 아니다 */
+  | 'stale-topic'
   /** fetch 를 다 해봤지만 최소 출처 수에 못 미쳤다 */
   | 'too-few-sources';
+
+/**
+ * 토픽이 최근 소식인가 (D-51).
+ *
+ * **하나라도 최근이면 통과다.** 오래된 출처가 섞여 있는 것은 정상이다 —
+ * 배경이 되는 1차 논문은 원래 오래됐다. 막으려는 것은 **전부 오래된** 경우다.
+ *
+ * 날짜를 아는 출처가 하나도 없으면 통과시킨다. 모르는 것으로 버리지 않는다.
+ */
+export function hasRecentSource(
+  results: readonly { publishedAt: Date | null }[],
+  now: Date = new Date(),
+): boolean {
+  const dated = results.filter((r) => r.publishedAt);
+  if (dated.length === 0) return true;
+
+  return dated.some(
+    (r) => (now.getTime() - r.publishedAt!.getTime()) / 86_400_000 <= MAX_SOURCE_AGE_DAYS,
+  );
+}
 
 export interface ResearchResult {
   sources: CollectedSource[];
@@ -101,14 +124,15 @@ export async function researchTopic(
   const rejections: { url: string; reason: string }[] = [];
 
   // ── 검색 (상한: searchCallsPerTopic) ──────────────────────
-  const urls: string[] = [];
+  // URL 만 뽑지 않고 결과를 통째로 들고 있는다 — 신선도 판정에 날짜가 필요하다
+  const found: SearchResult[] = [];
   let searchCalls = 0;
 
   for (const query of queries.slice(0, budget.searchCallsPerTopic)) {
     try {
       const results = await brave.search(query);
       searchCalls += 1;
-      for (const result of results) urls.push(result.url);
+      found.push(...results);
     } catch (error) {
       // 쿼리 하나가 실패해도 나머지로 진행한다
       rejections.push({
@@ -120,7 +144,7 @@ export async function researchTopic(
 
   // ── tier 필터 ─────────────────────────────────────────────
   // 같은 URL 이 여러 쿼리에서 나올 수 있다
-  const { accepted, rejected } = filterSources([...new Set(urls)]);
+  const { accepted, rejected } = filterSources([...new Set(found.map((r) => r.url))]);
   rejections.push(...rejected);
 
   const tier1CandidatesSeen = accepted.filter((c) => c.tier === 1).length;
@@ -135,6 +159,23 @@ export async function researchTopic(
       usage,
       rejections,
       tier1CandidatesSeen: 0,
+    };
+  }
+
+  // ── 신선도 (D-51) ─────────────────────────────────────────
+  // **fetch 앞에 둔다.** 페이지를 가져온 뒤 버리면 그만큼이 그냥 나간 돈이다.
+  // 판정은 tier 를 통과한 후보만 본다 — 버릴 도메인의 날짜는 신호가 아니다
+  const acceptedUrls = new Set(accepted.map((c) => c.url));
+  if (!hasRecentSource(found.filter((r) => acceptedUrls.has(r.url)))) {
+    return {
+      sources: [],
+      skipped: 'stale-topic',
+      queries,
+      searchCalls,
+      pagesFetched: 0,
+      usage,
+      rejections,
+      tier1CandidatesSeen,
     };
   }
 

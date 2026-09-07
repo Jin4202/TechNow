@@ -39,6 +39,26 @@ export const MIN_TITLE_LENGTH = 15;
 export const MAX_ITEM_AGE_DAYS = 30;
 
 /**
+ * 토픽이 "최근 소식" 이려면 **적어도 한 출처**가 이보다 최근이어야 한다.
+ *
+ * 피드 나이(MAX_ITEM_AGE_DAYS)와 다른 층을 막는다. 피드는 오늘 실렸어도 다루는
+ * 연구는 작년 것일 수 있다 — 실제로 그렇게 발행된 기사가 있다:
+ *
+ *   sorbitol/fructose 간 손상  출처가 2025-10 ~ 2026-06 (최신이 약 2.5개월 전)
+ *   magic angle graphene      출처가 2018 · 2021 · 2023 · 2025
+ *   BepiColombo               출처가 전부 2~4일 전          ← 이건 통과해야 한다
+ *   dormant cancer cells      출처가 8시간 ~ 1개월          ← 이것도
+ *
+ * **오래된 출처를 지우지 않는다.** 배경 설명에 필요한 오래된 1차 논문은 정당한
+ * 출처다. 판정 대상은 개별 출처가 아니라 **토픽 전체의 신선도**이며,
+ * 최근 출처가 하나도 없으면 그 토픽이 지금의 뉴스가 아닌 것이다.
+ *
+ * 날짜를 아는 출처가 하나도 없으면 통과시킨다 — 모르는 것을 배제 사유로 쓰지 않는다.
+ * (Brave `page_age` 실측 커버리지 97%)
+ */
+export const MAX_SOURCE_AGE_DAYS = 30;
+
+/**
  * 설명 길이는 필터로 쓰지 않는다.
  *
  * Ars Technica 의 설명은 48~115자인데 "Second complete map of a fruit fly brain

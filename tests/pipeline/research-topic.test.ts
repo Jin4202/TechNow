@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { budget } from '@/config/budget';
 import { createFetchContext } from '@/pipeline/research/fetch-page';
-import { generateQueries, researchTopic } from '@/pipeline/research/research-topic';
+import {
+  generateQueries,
+  hasRecentSource,
+  researchTopic,
+} from '@/pipeline/research/research-topic';
 import { buildQueryPrompt } from '@/prompts/generate-queries';
 
 import type { AnthropicClient } from '@/clients/anthropic';
@@ -29,13 +33,22 @@ function claudeStub(queries: string[] | Error): AnthropicClient {
   } as unknown as AnthropicClient;
 }
 
-function braveStub(urlsPerQuery: string[][] | Error): BraveClient {
+function braveStub(
+  urlsPerQuery: string[][] | Error,
+  /** URL 별 발행일. 없으면 null 이고, 그러면 신선도 판정이 통과시킨다 */
+  dates: Record<string, Date> = {},
+): BraveClient {
   let call = 0;
   return {
     search: vi.fn(async () => {
       if (urlsPerQuery instanceof Error) throw urlsPerQuery;
       const urls = urlsPerQuery[call++] ?? [];
-      return urls.map((url) => ({ url, title: 't', description: 'd' }));
+      return urls.map((url) => ({
+        url,
+        title: 't',
+        description: 'd',
+        publishedAt: dates[url] ?? null,
+      }));
     }),
   } as unknown as BraveClient;
 }
@@ -94,6 +107,42 @@ describe('researchTopic', () => {
     'https://www.bbc.com/e',
     'https://www.npr.org/f',
   ];
+
+  it('출처가 전부 오래되면 페이지를 가져오기 전에 끊는다 (D-51)', async () => {
+    // 날짜는 실제 sorbitol 토픽에서 관측한 값이다 — 최신이 약 2.5개월 전
+    const stale = Object.fromEntries(
+      good.map((url, i) => [url, new Date(['2025-10-28', '2025-12-09', '2026-06-19',
+        '2026-02-06', '2025-11-25', '2026-06-01'][i]!)]),
+    );
+    const fetchImpl = vi.fn(fetchStub({}));
+
+    const r = await researchTopic(
+      claudeStub(['q1']),
+      braveStub([good], stale),
+      createFetchContext(fetchImpl as unknown as typeof fetch),
+      { title: 'T', items: [] },
+    );
+
+    expect(r.skipped).toBe('stale-topic');
+    expect(r.sources).toHaveLength(0);
+    // **페이지를 한 장도 가져오지 않아야 한다.** 가져온 뒤 버리면 그만큼이 그냥 나간 돈이다
+    expect(r.pagesFetched).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('오래된 출처가 섞여 있어도 하나가 최근이면 진행한다 (D-51)', async () => {
+    const mixed = { [good[0]!]: new Date('2018-03-05'), [good[1]!]: new Date() };
+
+    const r = await researchTopic(
+      claudeStub(['q1']),
+      braveStub([good], mixed),
+      createFetchContext(fetchStub({})),
+      { title: 'T', items: [] },
+    );
+
+    expect(r.skipped).not.toBe('stale-topic');
+    expect(r.sources.length).toBeGreaterThan(0);
+  });
 
   it('출처를 모으고 tier 를 붙인다', async () => {
     const r = await researchTopic(
@@ -221,5 +270,49 @@ describe('buildQueryPrompt', () => {
       items: [{ title: 'I', description: 'w'.repeat(900) }],
     });
     expect(p).not.toContain('w'.repeat(401));
+  });
+});
+
+/**
+ * 토픽 신선도 (D-51).
+ *
+ * 날짜는 실제로 관측한 Brave `page_age` 값들이다 (2026-09-06).
+ */
+describe('hasRecentSource', () => {
+  const NOW = new Date('2026-09-06T00:00:00Z');
+  const at = (iso: string) => ({ publishedAt: new Date(iso) });
+
+  it('전부 최근이면 통과 — BepiColombo (2~4일 전)', () => {
+    expect(hasRecentSource(
+      [at('2026-09-03'), at('2026-09-04'), at('2026-09-02')], NOW,
+    )).toBe(true);
+  });
+
+  it('오래된 것이 섞여 있어도 하나만 최근이면 통과', () => {
+    // 배경이 되는 1차 논문은 원래 오래됐다. 그것 때문에 토픽을 버리면 안 된다
+    expect(hasRecentSource(
+      [at('2018-03-05'), at('2021-10-20'), at('2026-08-20')], NOW,
+    )).toBe(true);
+  });
+
+  it('전부 오래되면 거른다 — sorbitol (최신이 약 2.5개월 전)', () => {
+    expect(hasRecentSource(
+      [at('2025-10-28'), at('2025-12-09'), at('2026-06-19'), at('2026-02-06')], NOW,
+    )).toBe(false);
+  });
+
+  it('전부 오래되면 거른다 — magic angle graphene (2018~2025)', () => {
+    expect(hasRecentSource(
+      [at('2018-03-05'), at('2023-01-30'), at('2025-11-06')], NOW,
+    )).toBe(false);
+  });
+
+  it('날짜를 아는 출처가 없으면 통과시킨다', () => {
+    // 모르는 것을 배제 사유로 쓰지 않는다. Brave 커버리지는 97% 지만 0% 가 될 수도 있다
+    expect(hasRecentSource([{ publishedAt: null }, { publishedAt: null }], NOW)).toBe(true);
+  });
+
+  it('빈 목록도 통과시킨다', () => {
+    expect(hasRecentSource([], NOW)).toBe(true);
   });
 });

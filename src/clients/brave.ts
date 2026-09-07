@@ -33,6 +33,21 @@ export interface SearchResult {
   url: string;
   title: string;
   description: string;
+  /**
+   * 페이지 발행 시각. `page_age` 를 파싱한 것이며, 없으면 null.
+   *
+   * **`age` 가 아니라 `page_age` 를 쓴다.** `age` 는 "3 weeks ago" 와
+   * "March 5, 2018" 이 섞여 나오고 `page_age` 는 항상 ISO 8601 이다.
+   * 실측에서 40건 중 39건(97%)에 값이 있었다 (2026-09-06).
+   */
+  publishedAt: Date | null;
+}
+
+/** `page_age` 는 ISO 8601 이다. 형식이 바뀌면 조용히 null 이 된다 — 배제가 아니라 통과다 */
+function parsePageAge(value: string | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export interface BraveClientOptions {
@@ -112,6 +127,7 @@ export class BraveClient {
       url: r.url,
       title: r.title ?? '',
       description: r.description ?? '',
+      publishedAt: parsePageAge(r.page_age),
     }));
   }
 }
