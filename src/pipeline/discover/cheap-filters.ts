@@ -1,4 +1,4 @@
-import { FILTER_RULES, MAX_ITEM_AGE_DAYS, MIN_TITLE_LENGTH } from '@/config/filters';
+import { FILTER_RULES, maxItemAgeDays, MIN_TITLE_LENGTH } from '@/config/filters';
 
 import type { FeedItem } from './parse-feed';
 
@@ -34,7 +34,7 @@ export function rejectReason(item: FeedItem, now: Date = new Date()): string | n
   // 날짜 없음을 탈락 사유로 쓰면 파서가 조용히 깨졌을 때 피드 전체가 사라진다
   if (item.publishedAt) {
     const ageDays = (now.getTime() - item.publishedAt.getTime()) / 86_400_000;
-    if (ageDays > MAX_ITEM_AGE_DAYS) return 'stale';
+    if (ageDays > maxItemAgeDays()) return 'stale';
   }
 
   if (title.length < MIN_TITLE_LENGTH) return 'too-short';

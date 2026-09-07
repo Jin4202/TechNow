@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { feeds } from '@/config/feeds';
-import { MAX_ITEM_AGE_DAYS } from '@/config/filters';
+import { maxItemAgeDays } from '@/config/filters';
 import { applyCheapFilters, summarizeRejections } from '@/pipeline/discover/cheap-filters';
 import { dedupeItems, fetchFeeds } from '@/pipeline/discover/fetch-feeds';
 
@@ -46,7 +46,7 @@ describe('실제 피드 수집', () => {
     const ageDays = (d: Date) => (now.getTime() - d.getTime()) / 86_400_000;
     const dated = unique.filter((i) => i.publishedAt);
 
-    console.log(`\n나이 상한 ${MAX_ITEM_AGE_DAYS}일 — 피드별 분포`);
+    console.log(`\n나이 상한 ${maxItemAgeDays()}일 — 피드별 분포`);
     for (const feed of new Set(unique.map((i) => i.feedName))) {
       const ages = dated.filter((i) => i.feedName === feed).map((i) => ageDays(i.publishedAt!));
       if (ages.length === 0) {
@@ -54,7 +54,7 @@ describe('실제 피드 수집', () => {
         continue;
       }
       ages.sort((a, b) => a - b);
-      const over = ages.filter((a) => a > MAX_ITEM_AGE_DAYS).length;
+      const over = ages.filter((a) => a > maxItemAgeDays()).length;
       console.log(
         `  ${feed.padEnd(16)} ${String(ages.length).padStart(3)}건  ` +
           `중앙 ${ages[Math.floor(ages.length / 2)]!.toFixed(1)}일  ` +

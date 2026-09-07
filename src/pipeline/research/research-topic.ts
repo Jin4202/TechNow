@@ -2,7 +2,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
 import { readUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { budget } from '@/config/budget';
-import { MAX_SOURCE_AGE_DAYS } from '@/config/filters';
+import { maxSourceAgeDays } from '@/config/filters';
 import { models } from '@/config/models';
 import { buildQueryPrompt, QUERY_SYSTEM, QueryPlanSchema } from '@/prompts/generate-queries';
 
@@ -52,7 +52,7 @@ export function hasRecentSource(
   if (dated.length === 0) return true;
 
   return dated.some(
-    (r) => (now.getTime() - r.publishedAt!.getTime()) / 86_400_000 <= MAX_SOURCE_AGE_DAYS,
+    (r) => (now.getTime() - r.publishedAt!.getTime()) / 86_400_000 <= maxSourceAgeDays(),
   );
 }
 

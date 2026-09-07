@@ -11,6 +11,8 @@
  * 패턴은 실제 수집 데이터를 보고 만들었다. 추측으로 추가하지 말 것.
  */
 
+import { envInt } from './tunables';
+
 /** 이보다 짧은 제목은 토픽이 될 만한 정보가 없다 */
 export const MIN_TITLE_LENGTH = 15;
 
@@ -35,8 +37,14 @@ export const MIN_TITLE_LENGTH = 15;
  * **30일인 이유**: IEEE 중앙값이 13.2일이라 14일로 잡으면 IEEE 항목 절반이 죽는다.
  * IEEE 는 robotics-hardware 와 industry-policy 를 덮는 두 피드 중 하나다 (D-16).
  * 이미 좁은 카테고리 공급을 더 좁히지 않으면서 2021년 3건만 걸러내는 값이 30일이다.
+ *
+ * env: TECHNOW_MAX_ITEM_AGE_DAYS — 배포 없이 넓혀 후보를 늘릴 수 있다 (§2.4).
+ * 함수로 둔 것은 의도적이다. 모듈 로드 시 한 번 읽으면 같은 워커가 살아 있는 동안
+ * 환경변수 변경이 반영되지 않는다 (thresholds 와 같은 이유)
  */
-export const MAX_ITEM_AGE_DAYS = 30;
+export function maxItemAgeDays(): number {
+  return envInt('TECHNOW_MAX_ITEM_AGE_DAYS', 30);
+}
 
 /**
  * 토픽이 "최근 소식" 이려면 **적어도 한 출처**가 이보다 최근이어야 한다.
@@ -55,8 +63,12 @@ export const MAX_ITEM_AGE_DAYS = 30;
  *
  * 날짜를 아는 출처가 하나도 없으면 통과시킨다 — 모르는 것을 배제 사유로 쓰지 않는다.
  * (Brave `page_age` 실측 커버리지 97%)
+ *
+ * env: TECHNOW_MAX_SOURCE_AGE_DAYS
  */
-export const MAX_SOURCE_AGE_DAYS = 30;
+export function maxSourceAgeDays(): number {
+  return envInt('TECHNOW_MAX_SOURCE_AGE_DAYS', 30);
+}
 
 /**
  * 설명 길이는 필터로 쓰지 않는다.

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { MAX_ITEM_AGE_DAYS } from '@/config/filters';
+import { maxItemAgeDays } from '@/config/filters';
 import {
   applyCheapFilters,
   rejectReason,
@@ -41,7 +41,7 @@ describe('오래된 항목 (2026-09-06)', () => {
   });
 
   it('경계값(정확히 상한)은 통과시킨다 — 필터는 보수적으로', () => {
-    expect(rejectReason(aged('A perfectly reasonable science headline', MAX_ITEM_AGE_DAYS), NOW))
+    expect(rejectReason(aged('A perfectly reasonable science headline', maxItemAgeDays()), NOW))
       .toBeNull();
   });
 
