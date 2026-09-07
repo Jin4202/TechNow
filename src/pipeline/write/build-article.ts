@@ -1,7 +1,7 @@
 import { addUsage, ZERO_USAGE, type AnthropicClient, type TokenUsage } from '@/clients/anthropic';
 import { budget } from '@/config/budget';
 import { thresholds } from '@/config/thresholds';
-import { buildRetryNote, verifyArticle, type VerificationResult } from '@/pipeline/verify/verify-claims';
+import { buildRetryNote, verifyWithRetry, type VerificationResult } from '@/pipeline/verify/verify-claims';
 import {
   repairArticle,
   writeArticle,
@@ -137,7 +137,8 @@ export async function buildArticle(
 
     previous = written.article;
 
-    const verification = await verifyArticle(claude, written.article, input.sources);
+    // 검증 호출이 깨지면 기사가 아니라 검증을 다시 건다 (D-50)
+    const verification = await verifyWithRetry(claude, written.article, input.sources);
     usage = addUsage(usage, verification.usage);
     lastVerification = verification;
 
@@ -145,11 +146,14 @@ export async function buildArticle(
       return { article: written.article, failure: null, attempts: attempt, usage, verification };
     }
 
-    // 검증 호출 자체가 실패한 경우는 근거 문제와 구분한다
+    // 검증 호출 자체가 실패한 경우는 근거 문제와 구분한다.
+    // verifyWithRetry 가 이미 다시 걸어봤는데도 깨졌다는 뜻이다 — 기사를 다시 써도
+    // 검증기가 고쳐지지 않으므로 여기서 끝낸다. **검증되지 않은 기사는 내보내지
+    // 않는다** (CLAUDE.md §2.5). 예전에는 continue 로 기사를 다시 썼는데,
+    // 검증기가 깨진 것을 작성자에게 물린 것이라 비싸기만 했다
     if (verification.error) {
       lastDetail = verification.error;
-      retryNote = undefined;
-      continue;
+      break;
     }
 
     retryNote = `These statements were not supported by the sources:\n${buildRetryNote(verification.unsupported)}\nRemove them, or replace them with what the sources actually say. Do not add new claims.`;

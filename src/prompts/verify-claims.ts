@@ -17,9 +17,21 @@ import { z } from 'zod';
 
 export const ClaimSchema = z.object({
   text: z.string().describe('The claim, quoted or closely paraphrased from the article.'),
+  /**
+   * 분류 라벨. **판정에 쓰이지 않는다** — 대조 프롬프트에 `[0] (number) ...` 로
+   * 찍히는 표시용이다.
+   *
+   * enum 이었는데 문자열로 풀었다 (D-50). 프로덕션에서 모델이 목록에 없는 값을
+   * 하나 내놓자 zod 가 응답 전체를 거부했고, **아무 로직도 태우지 않는 라벨 때문에
+   * 완성된 기사가 통째로 버려졌다.** 실패해도 되는 것과 안 되는 것을 구분한다 —
+   * 근거 판정은 엄격해야 하지만(CLAUDE.md §2.5) 라벨은 아니다.
+   *
+   * 목록은 지시로 남긴다. 모델은 여전히 이 다섯 중에서 고르려 하고,
+   * 빗나가도 파이프라인이 멈추지 않을 뿐이다.
+   */
   kind: z
-    .enum(['number', 'name', 'date', 'causal', 'attribution'])
-    .describe('What kind of statement this is.'),
+    .string()
+    .describe('One of: number, name, date, causal, attribution.'),
   sectionIndex: z.number().int().describe('Zero-based index of the section it appears in.'),
 });
 

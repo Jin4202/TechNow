@@ -97,6 +97,49 @@ describe('buildArticle (3.9)', () => {
     expect(r.attempts).toBe(2);
   });
 
+  /**
+   * 프로덕션 회귀 (D-50).
+   *
+   * 검증기가 깨졌을 때 **기사를 다시 쓰면 안 된다.** 깨진 것은 검증기이고
+   * 기사는 멀쩡한데, 예전 코드는 작성 호출(Sonnet)을 한 번 더 지불하고
+   * 완성된 기사를 버렸다.
+   */
+  describe('검증 호출이 깨졌을 때 (D-50)', () => {
+    const extractFails = new Error('Failed to parse structured output');
+
+    it('같은 기사로 검증을 다시 걸고, 통과하면 발행한다', async () => {
+      // 작성 → 추출(실패) → 추출(성공) → 대조
+      const claude = stub([goodDraft, extractFails, claims, allSupported]);
+      const r = await buildArticle(claude, input);
+
+      expect(r.article).not.toBeNull();
+      expect(r.attempts, '기사를 다시 쓰지 않았다').toBe(1);
+      // 작성 1 + 추출 2 + 대조 1 = 4. 작성이 두 번이면 5가 된다
+      expect(claude.messages.parse).toHaveBeenCalledTimes(4);
+    });
+
+    it('재검증도 깨지면 기사를 다시 쓰지 않고 끝낸다', async () => {
+      const claude = stub([goodDraft, extractFails, extractFails]);
+      const r = await buildArticle(claude, input);
+
+      expect(r.article).toBeNull();
+      expect(r.failure).toBe('verify-error');
+      // 작성 1 + 추출 2 = 3. 여기서 멈춰야 한다 — 검증기가 깨진 것을
+      // 작성자에게 물리지 않는다. 검증 못 한 기사는 내보내지 않는다 (§2.5)
+      expect(claude.messages.parse).toHaveBeenCalledTimes(3);
+    });
+
+    it('근거 실패는 재검증 대상이 아니다 — 그것은 판정이다', async () => {
+      // 작성 → 추출 → 대조(근거없음) → 재작성 → 추출 → 대조(통과)
+      const claude = stub([goodDraft, claims, unsupported, goodDraft, claims, allSupported]);
+      const r = await buildArticle(claude, input);
+
+      expect(r.article).not.toBeNull();
+      // 대조를 두 번 부르는 일 없이 정확히 6회. 근거 실패에 재검증이 붙으면 늘어난다
+      expect(claude.messages.parse).toHaveBeenCalledTimes(6);
+    });
+  });
+
   it('재작성해도 실패하면 skip 한다', async () => {
     const claude = stub([goodDraft, claims, unsupported, goodDraft, claims, unsupported]);
     const r = await buildArticle(claude, input);

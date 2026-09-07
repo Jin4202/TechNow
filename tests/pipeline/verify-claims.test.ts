@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildRetryNote, verifyArticle } from '@/pipeline/verify/verify-claims';
-import { buildExtractPrompt, buildVerifyPrompt } from '@/prompts/verify-claims';
+import { buildExtractPrompt, buildVerifyPrompt, ClaimListSchema } from '@/prompts/verify-claims';
 
 import type { AnthropicClient } from '@/clients/anthropic';
 import type { WrittenArticle } from '@/pipeline/write/write-article';
@@ -209,5 +209,39 @@ describe('프롬프트', () => {
     const p = buildVerifyPrompt([claim('A'), claim('B')]);
     expect(p).toContain('[0] (number) A');
     expect(p).toContain('[1] (number) B');
+  });
+});
+
+/**
+ * 프로덕션 회귀 (D-50).
+ *
+ * `kind` 는 대조 프롬프트의 표시용 라벨일 뿐 아무 판정도 태우지 않는다.
+ * enum 이던 시절, 모델이 목록 밖의 값을 하나 내놓자 zod 가 응답 전체를 거부했고
+ * 완성된 기사가 통째로 버려졌다.
+ */
+describe('claim.kind 는 파이프라인을 멈출 수 없다 (D-50)', () => {
+  it('목록에 없는 라벨도 파싱된다', () => {
+    const parsed = ClaimListSchema.safeParse({
+      claims: [{ text: 'The mirror weighs 186 kg', kind: 'quantity', sectionIndex: 0 }],
+    });
+
+    expect(parsed.success, '라벨 하나로 기사를 버리지 않는다').toBe(true);
+  });
+
+  it('판정에 쓰이는 필드는 여전히 엄격하다', () => {
+    // 관용은 라벨에만 적용된다. text 나 sectionIndex 가 깨지면 검증이 성립하지 않는다
+    expect(
+      ClaimListSchema.safeParse({ claims: [{ kind: 'number', sectionIndex: 0 }] }).success,
+    ).toBe(false);
+    expect(
+      ClaimListSchema.safeParse({
+        claims: [{ text: 'A', kind: 'number', sectionIndex: 'first' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('라벨은 대조 프롬프트에 그대로 실린다', () => {
+    const prompt = buildVerifyPrompt([{ text: 'A', kind: 'quantity', sectionIndex: 0 }]);
+    expect(prompt).toContain('[0] (quantity) A');
   });
 });

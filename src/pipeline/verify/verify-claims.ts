@@ -189,6 +189,38 @@ export async function verifyArticle(
   };
 }
 
+/** 검증 호출 자체가 실패했을 때의 재시도 횟수. 판정 실패는 여기 해당하지 않는다 */
+const VERIFY_ATTEMPTS = 2;
+
+/**
+ * 검증이 **호출 단계에서** 실패하면 같은 기사로 다시 검증한다 (D-50).
+ *
+ * 근거 실패(`passed === false`)는 재시도하지 않는다 — 그것은 사고가 아니라 판정이다.
+ * 여기서 다시 거는 것은 `error` 가 있을 때, 즉 추출·대조 호출이 깨졌거나 응답을
+ * 파싱하지 못한 경우뿐이다.
+ *
+ * **왜 필요했나**: 이전에는 `buildArticle` 이 검증 오류에도 루프를 계속 돌아
+ * **기사를 처음부터 다시 썼다.** 검증기가 깨진 것인데 작성자를 벌한 셈이고,
+ * 멀쩡한 기사를 버리면서 Sonnet 작성 호출을 한 번 더 지불했다.
+ * 프로덕션에서 실제로 라벨 하나 때문에 기사 한 편이 이렇게 사라졌다.
+ */
+export async function verifyWithRetry(
+  claude: AnthropicClient,
+  article: WrittenArticle,
+  sources: readonly PromptSource[],
+): Promise<VerificationResult> {
+  let usage = ZERO_USAGE;
+  let last: VerificationResult | null = null;
+
+  for (let attempt = 0; attempt < VERIFY_ATTEMPTS; attempt += 1) {
+    last = await verifyArticle(claude, article, sources);
+    usage = addUsage(usage, last.usage);
+    if (!last.error) break;
+  }
+
+  return { ...last!, usage };
+}
+
 /** 재작성 프롬프트에 붙일 실패 사유 (3.9) */
 export function buildRetryNote(unsupported: readonly CheckedClaim[]): string {
   return unsupported
