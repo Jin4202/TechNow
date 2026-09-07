@@ -36,6 +36,7 @@
     "summary:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/monthly-summary.live.ts",
     "monthly:live": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/run-monthly.live.ts",
     "isolation:check": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/isolation.live.ts",
+    "sources:coverage": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/source-coverage.live.ts",
     "cost:report": "vitest run --config vitest.live.config.mts --reporter=verbose tests/live/cost-report.live.ts"
   },
   "dependencies": {
