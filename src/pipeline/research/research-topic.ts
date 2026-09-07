@@ -164,9 +164,17 @@ export async function researchTopic(
 
   // ── 신선도 (D-51) ─────────────────────────────────────────
   // **fetch 앞에 둔다.** 페이지를 가져온 뒤 버리면 그만큼이 그냥 나간 돈이다.
-  // 판정은 tier 를 통과한 후보만 본다 — 버릴 도메인의 날짜는 신호가 아니다
-  const acceptedUrls = new Set(accepted.map((c) => c.url));
-  if (!hasRecentSource(found.filter((r) => acceptedUrls.has(r.url)))) {
+  //
+  // **검색 결과 전체로 판정한다. tier 통과분으로 좁히지 않는다.**
+  // 처음에 좁혔다가 오탐을 냈다 (D-51 후속): "Social isolation in childhood
+  // linked to NEET status" 는 5일 전 보도(theconversation.com)가 있었는데
+  // 그 도메인이 tier 목록에 없어 판정에서 빠졌고, 남은 tier 통과분이 40일 이상이라
+  // stale 로 버려졌다.
+  //
+  // tier 는 "이 도메인을 출처로 인용할 것인가" 이고 신선도는 "이 토픽이 지금
+  // 뉴스인가" 다. **다른 질문이다.** 인용하지 않을 매체가 5일 전에 다뤘다는 사실은
+  // 그 토픽이 최근 소식이라는 증거이지, 그 매체를 쓰겠다는 뜻이 아니다
+  if (!hasRecentSource(found)) {
     return {
       sources: [],
       skipped: 'stale-topic',

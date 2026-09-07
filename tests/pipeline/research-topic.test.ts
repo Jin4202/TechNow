@@ -130,6 +130,40 @@ describe('researchTopic', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  /**
+   * 프로덕션 오탐 회귀 (D-51 후속).
+   *
+   * "Social isolation in childhood linked to NEET status" 가 stale-topic 으로
+   * 버려졌는데 실제로는 5일 전 보도가 있었다. 그 보도(theconversation.com)가
+   * tier 목록에 없어 판정 모집단에서 빠졌고, 남은 tier 통과분이 40일 이상이라
+   * 오래된 토픽으로 읽혔다.
+   *
+   * **신선도는 검색 결과 전체로 판정한다.** tier 는 "인용할 도메인인가" 이고
+   * 신선도는 "지금 뉴스인가" 다 — 인용하지 않을 매체가 5일 전에 다뤘다는 사실도
+   * 신선도의 증거다.
+   */
+  it('tier 에서 떨어질 도메인의 날짜도 신선도 판정에 쓴다 (D-51 후속)', async () => {
+    const day = 86_400_000;
+    // theconversation.com 은 tier 목록에 없어 출처로는 안 쓰이지만 5일 전이다
+    const urls = ['https://theconversation.com/socially-isolated-neet', ...good];
+    const dates = {
+      [urls[0]!]: new Date(Date.now() - 5 * day),
+      [good[0]!]: new Date(Date.now() - 41 * day),
+      [good[1]!]: new Date(Date.now() - 40 * day),
+      [good[2]!]: new Date(Date.now() - 1064 * day),
+    };
+
+    const r = await researchTopic(
+      claudeStub(['q1']),
+      braveStub([urls], dates),
+      createFetchContext(fetchStub({})),
+      { title: 'Social isolation in childhood linked to NEET status', items: [] },
+    );
+
+    expect(r.skipped, '5일 전 보도가 있으면 최근 토픽이다').not.toBe('stale-topic');
+    expect(r.sources.length).toBeGreaterThan(0);
+  });
+
   it('오래된 출처가 섞여 있어도 하나가 최근이면 진행한다 (D-51)', async () => {
     const mixed = { [good[0]!]: new Date('2018-03-05'), [good[1]!]: new Date() };
 
