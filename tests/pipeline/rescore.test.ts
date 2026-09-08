@@ -43,6 +43,7 @@ describe('selectForRescore (D-19)', () => {
 
 const scored = (index: number, n: number, i: number, r: number): ScoredTopic => ({
   index,
+  kind: 'paper' as const,
   novelty: { score: n, reason: '1차 근거' },
   impact: { score: i, reason: '1차 근거' },
   interest: { score: r, reason: '1차 근거' },

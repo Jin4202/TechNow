@@ -12,8 +12,27 @@ const AxisSchema = z.object({
   reason: z.string().describe('One line. Must answer why this score and not one higher.'),
 });
 
+/**
+ * 토픽의 종류 (D-57).
+ *
+ * **점수가 아니라 구성을 위한 것이다.** 선정 단계가 "하루 N건 중 단일 논문은
+ * 최대 M건" 같은 쿼터를 걸 수 있게 한다 — 점수를 주무르는 대신 카운터로 막는다
+ * (CLAUDE.md §2.6 과 같은 결).
+ *
+ * 왜 필요했나: 후보 풀의 66% 가 논문 보도자료 재게시처(ScienceDaily, phys.org)
+ * 인데 임계 통과에서는 81% 로 오히려 쏠렸다. novelty 앵커가
+ * "A paper ... made public today" 를 5점으로 정의하므로 채점이 논문을 선호한다.
+ * 점수 조정으로 두 번 시도했다가 두 번 다 실패했다 (D-56, D-57).
+ */
+export const TopicKindSchema = z
+  .enum(['paper', 'event', 'product', 'trend'])
+  .describe('What kind of topic this is.');
+
+export type TopicKind = z.infer<typeof TopicKindSchema>;
+
 export const TopicScoreSchema = z.object({
   topicNumber: z.number().int().describe('The topic number from the input list.'),
+  kind: TopicKindSchema,
   novelty: AxisSchema,
   impact: AxisSchema,
   interest: AxisSchema,
@@ -33,7 +52,20 @@ export type ScoringResult = z.infer<typeof ScoringResultSchema>;
  */
 export const SCORING_SYSTEM = `You score candidate topics for a science and technology publication that publishes at most three articles a day.
 
-Score each topic on three axes, 1 to 5, and give a one-line reason for each. The reason must answer "why this score and not one higher".
+First classify each topic, then score it on three axes, 1 to 5, with a one-line reason for each. The reason must answer "why this score and not one higher".
+
+KIND — what sort of thing is this?
+paper    A single study, preprint, or research finding. "Researchers found that X."
+         A press release about one paper is still a paper.
+event    Something happened in the world. A launch, an outage, a ruling, an acquisition,
+         an outbreak, a policy decision, a disaster.
+product  Something was released or announced that people can use or buy.
+trend    A pattern across many cases: a survey, an industry shift, an analysis of
+         several studies, a change in how a field works.
+
+Classify by what the topic IS, not by who published it. A newspaper writing about
+one study is still "paper"; a journal announcing it is shutting down is "event".
+This does not affect the scores — score the topic on its merits either way.
 
 NOVELTY — is this new information, or a repeat of what is already known?
 5  First announcement. A paper or institutional release made public today.

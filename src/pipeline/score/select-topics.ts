@@ -20,7 +20,9 @@ export type RejectReason =
   /** 축 하나 이상이 하한 미만 */
   | 'below-axis'
   /** 통과했지만 하루 상한에 밀림 */
-  | 'over-cap';
+  | 'over-cap'
+  /** 통과했지만 그날 논문 쿼터가 찼음 (D-57) */
+  | 'paper-quota';
 
 export interface SelectionEntry {
   score: ScoredTopic;
@@ -55,6 +57,7 @@ export function passesThreshold(score: ScoredTopic): boolean {
 export function selectTopics(
   scored: readonly ScoredTopic[],
   cap: number = thresholds.dailyCap,
+  maxPapers: number = thresholds.maxPapersPerDay,
 ): SelectionResult {
   const entries: SelectionEntry[] = [];
   const passing: ScoredTopic[] = [];
@@ -75,14 +78,28 @@ export function selectTopics(
     (a, b) => b.total - a.total || (order.get(a) ?? 0) - (order.get(b) ?? 0),
   );
 
+  // 논문 쿼터 (D-57). **점수순으로 걸으면서 논문이 상한을 넘으면 건너뛴다.**
+  // 건너뛴 자리는 다음 순위가 채우므로 상한까지는 채워진다 — 비논문이 마르면
+  // 그때만 5건에 못 미친다
   const selected: ScoredTopic[] = [];
+  let papers = 0;
+
   ranked.forEach((score, index) => {
-    if (index < cap) {
-      selected.push(score);
-      entries.push({ score, selected: true, reason: null, rank: index + 1 });
-    } else {
-      entries.push({ score, selected: false, reason: 'over-cap', rank: index + 1 });
+    const rank = index + 1;
+
+    if (selected.length >= cap) {
+      entries.push({ score, selected: false, reason: 'over-cap', rank });
+      return;
     }
+
+    if (score.kind === 'paper' && papers >= maxPapers) {
+      entries.push({ score, selected: false, reason: 'paper-quota', rank });
+      return;
+    }
+
+    if (score.kind === 'paper') papers += 1;
+    selected.push(score);
+    entries.push({ score, selected: true, reason: null, rank });
   });
 
   return { selected, entries };
@@ -95,14 +112,17 @@ export function summarizeSelection(entries: readonly SelectionEntry[]): {
   belowTotal: number;
   belowAxis: number;
   overCap: number;
+  paperQuota: number;
 } {
   const count = (reason: RejectReason) => entries.filter((e) => e.reason === reason).length;
   const overCap = count('over-cap');
+  const paperQuota = count('paper-quota');
   const selected = entries.filter((e) => e.selected).length;
 
   return {
     selected,
-    passedThreshold: selected + overCap,
+    paperQuota,
+    passedThreshold: selected + overCap + paperQuota,
     belowTotal: count('below-total'),
     belowAxis: count('below-axis'),
     overCap,

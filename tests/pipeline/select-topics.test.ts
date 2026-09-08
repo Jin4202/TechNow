@@ -10,8 +10,19 @@ import {
 
 import type { ScoredTopic } from '@/pipeline/score/score-topics';
 
-const s = (index: number, n: number, i: number, r: number): ScoredTopic => ({
+/**
+ * 기본 kind 는 `event` 다 — 논문 쿼터(D-57)와 무관하게 임계·상한 규칙만 보려는
+ * 테스트들이 대부분이기 때문이다. 쿼터를 보는 테스트는 kind 를 명시한다.
+ */
+const s = (
+  index: number,
+  n: number,
+  i: number,
+  r: number,
+  kind: ScoredTopic['kind'] = 'event',
+): ScoredTopic => ({
   index,
+  kind,
   novelty: { score: n, reason: 'n' },
   impact: { score: i, reason: 'i' },
   interest: { score: r, reason: 'r' },
@@ -163,6 +174,65 @@ describe('summarizeSelection', () => {
       belowTotal: 1,
       belowAxis: 1,
       overCap: 1,
+      paperQuota: 0,
     });
+  });
+});
+
+/**
+ * 논문 쿼터 (D-57).
+ *
+ * 후보 풀의 66% 가 논문 보도자료 재게시처이고 임계 통과에서는 63% 로 더 쏠린다.
+ * 사용자가 "사실상 논문을 그대로 요약해놓은 기사" 를 문제로 지목했다.
+ * **점수를 주무르지 않고 카운터로 막는다** — 점수 조정은 두 번 다 실패했다.
+ */
+describe('논문 쿼터 (D-57)', () => {
+  const paper = (index: number, n: number, i: number, r: number) => s(index, n, i, r, 'paper');
+
+  it('상한 안에서 논문이 쿼터를 넘지 못한다', () => {
+    // 전부 논문이고 전부 통과한다. 상한은 5, 쿼터는 2
+    const scored = [0, 1, 2, 3, 4].map((k) => paper(k, 5, 5, 5));
+    const { selected, entries } = selectTopics(scored, 5, 2);
+
+    expect(selected).toHaveLength(2);
+    expect(summarizeSelection(entries).paperQuota).toBe(3);
+  });
+
+  it('쿼터에 막힌 자리를 비논문이 채운다', () => {
+    // 논문 3건이 점수가 더 높지만 2건만 들어가고, 나머지는 event 가 채운다
+    const scored = [
+      paper(0, 5, 5, 5),
+      paper(1, 5, 5, 5),
+      paper(2, 5, 5, 5),
+      s(3, 4, 4, 4, 'event'),
+      s(4, 4, 4, 3, 'trend'),
+    ];
+    const { selected } = selectTopics(scored, 5, 2);
+
+    // 상한 5 를 다 채우되 논문은 둘뿐이다
+    expect(selected).toHaveLength(4);
+    expect(selected.filter((x) => x.kind === 'paper')).toHaveLength(2);
+  });
+
+  it('비논문이 마르면 상한에 못 미친다 — 의도된 손해다', () => {
+    // 논문 5건뿐이면 2건만 나간다. 논문 5건보다 잘 섞인 2건이 낫다는 판단
+    const scored = [0, 1, 2, 3, 4].map((k) => paper(k, 5, 5, 5));
+    expect(selectTopics(scored, 5, 2).selected).toHaveLength(2);
+  });
+
+  it('논문이 아니면 쿼터와 무관하다', () => {
+    const scored = [0, 1, 2, 3, 4].map((k) => s(k, 5, 5, 5, 'event'));
+    expect(selectTopics(scored, 5, 2).selected).toHaveLength(5);
+  });
+
+  it('쿼터에 막힌 것도 임계는 통과한 것으로 센다', () => {
+    // 캘리브레이션에서 "왜 안 뽑혔나" 에 답할 수 있어야 한다 —
+    // 점수가 모자란 것과 쿼터에 막힌 것은 완전히 다른 사유다
+    const scored = [0, 1, 2].map((k) => paper(k, 5, 5, 5));
+    const summary = summarizeSelection(selectTopics(scored, 5, 2).entries);
+
+    expect(summary.passedThreshold).toBe(3);
+    expect(summary.belowTotal).toBe(0);
+    expect(summary.paperQuota).toBe(1);
   });
 });

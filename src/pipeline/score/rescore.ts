@@ -130,6 +130,8 @@ export async function rescoreTopics(
       const clamp = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
       const after: ScoredTopic = {
         index: score.index,
+        // 재채점도 종류를 다시 판정한다. 원문을 봤으니 1차보다 정확할 수 있다
+        kind: raw.kind,
         novelty: { score: clamp(raw.novelty.score), reason: raw.novelty.reason.trim() },
         impact: { score: clamp(raw.impact.score), reason: raw.impact.reason.trim() },
         interest: { score: clamp(raw.interest.score), reason: raw.interest.reason.trim() },

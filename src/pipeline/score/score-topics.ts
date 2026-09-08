@@ -14,6 +14,7 @@ import {
   SCORING_SYSTEM,
   ScoringResultSchema,
   type ScoringTopicInput,
+  type TopicKind,
   type TopicScore,
 } from '@/prompts/score-topics';
 
@@ -35,6 +36,8 @@ export interface AxisScore {
 export interface ScoredTopic {
   /** 입력 배열에서의 인덱스 */
   index: number;
+  /** 토픽의 종류 (D-57). 점수가 아니라 구성 쿼터를 위한 것이다 */
+  kind: TopicKind;
   novelty: AxisScore;
   impact: AxisScore;
   interest: AxisScore;
@@ -67,6 +70,7 @@ function toScoredTopic(raw: TopicScore, offset: number): ScoredTopic | null {
 
   return {
     index: offset + local,
+    kind: raw.kind,
     novelty,
     impact,
     interest,

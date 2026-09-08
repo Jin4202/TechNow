@@ -7,7 +7,7 @@ import { applyCheapFilters } from '@/pipeline/discover/cheap-filters';
 import { dedupeItems, fetchFeeds } from '@/pipeline/discover/fetch-feeds';
 import { groupTopics } from '@/pipeline/group/group-topics';
 import { scoreTopics } from '@/pipeline/score/score-topics';
-import { passesThreshold } from '@/pipeline/score/select-topics';
+import { passesThreshold, selectTopics } from '@/pipeline/score/select-topics';
 import { SCORING_SYSTEM } from '@/prompts/score-topics';
 
 import type { ScoredTopic } from '@/pipeline/score/score-topics';
@@ -142,6 +142,28 @@ describe('채점 기준 비교 (8.3)', () => {
         (n) => `${n}점 ${all.filter((s) => s.interest.score === n).length}`,
       );
       console.log(`   interest 분포  ${dist.join(' · ')}`);
+      // **쿼터를 정하기 전에 분포를 본다** (D-57). 숫자를 추측으로 정하면
+      // D-51 의 오탐을 반복한다
+      const kinds = ['paper', 'event', 'product', 'trend'] as const;
+      const kindLine = (list: readonly ScoredTopic[]) =>
+        kinds
+          .map((k) => `${k} ${list.filter((s) => s.kind === k).length}`)
+          .join(' · ');
+      console.log(`   종류 (채점 전체)  ${kindLine(all)}`);
+      console.log(`   종류 (임계 통과)  ${kindLine(passing)}`);
+      console.log(`   종류 (상위 ${thresholds.dailyCap})    ${kindLine(top)}`);
+      // **쿼터가 실제로 어떻게 무는지.** 상한만 적용한 것과 비교한다
+      const { selected: withQuota, entries } = selectTopics(all, thresholds.dailyCap);
+      const { selected: noQuota } = selectTopics(all, thresholds.dailyCap, 99);
+      const blocked = entries.filter((e) => e.reason === 'paper-quota').length;
+      console.log(
+        `   쿼터 적용  상한만 ${noQuota.length}건(논문 ${noQuota.filter((x) => x.kind === 'paper').length}) → ` +
+          `쿼터 ${withQuota.length}건(논문 ${withQuota.filter((x) => x.kind === 'paper').length}) · 막힌 것 ${blocked}`,
+      );
+      console.log('   ── 쿼터 적용 후 발행될 목록 ──');
+      for (const x of withQuota) {
+        console.log(`   ${x.kind.padEnd(7)} n${x.novelty.score} i${x.impact.score} r${x.interest.score}  ${titleOf(x.index).slice(0, 62)}`);
+      }
       console.log('   임계 통과분의 피드 구성:');
       for (const [feed, n] of countByFeed(passing.map((s) => ({ feedName: feedOf(s.index) })))) {
         console.log(`     ${String(n).padStart(3)}건 ${((n / passing.length) * 100).toFixed(0).padStart(3)}%  ${feed}`);

@@ -394,6 +394,7 @@ export type Database = {
           score_interest: number | null
           score_novelty: number | null
           selected: boolean
+          topic_kind: string | null
           topic_title: string
           trigger_url: string | null
         }
@@ -420,6 +421,7 @@ export type Database = {
           score_interest?: number | null
           score_novelty?: number | null
           selected?: boolean
+          topic_kind?: string | null
           topic_title: string
           trigger_url?: string | null
         }
@@ -446,6 +448,7 @@ export type Database = {
           score_interest?: number | null
           score_novelty?: number | null
           selected?: boolean
+          topic_kind?: string | null
           topic_title?: string
           trigger_url?: string | null
         }

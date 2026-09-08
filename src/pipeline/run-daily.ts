@@ -281,6 +281,7 @@ export async function runDailyDiscovery(
         score_impact: score?.impact.score ?? null,
         score_interest: score?.interest.score ?? null,
         importance_score: score?.total ?? null,
+        topic_kind: score?.kind ?? null,
         reason_novelty: score?.novelty.reason ?? null,
         reason_impact: score?.impact.reason ?? null,
         reason_interest: score?.interest.reason ?? null,
