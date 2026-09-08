@@ -105,6 +105,14 @@ async function mapWithConcurrency<T, R>(
 export async function scoreTopics(
   client: AnthropicClient,
   topics: readonly ScoringTopicInput[],
+  /**
+   * 채점 기준을 갈아끼우는 자리. **실험용이다** — 파이프라인은 항상 기본값으로 부른다.
+   *
+   * 루브릭을 바꿨을 때 같은 토픽이 어떻게 다르게 채점되는지 보려면 두 기준으로
+   * 같은 입력을 돌려야 한다 (`pnpm ranking:sim`). env 로 빼지 않은 것은
+   * 배포 설정에서 채점 기준이 조용히 바뀌면 안 되기 때문이다
+   */
+  system: string = SCORING_SYSTEM,
 ): Promise<ScoreTopicsResult> {
   if (topics.length === 0) {
     return { scored: [], unscored: [], usage: ZERO_USAGE, failedChunks: [] };
@@ -125,7 +133,7 @@ export async function scoreTopics(
           model: models.score,
           max_tokens: 8000,
           // 청크마다 동일하다. 캐시 프리픽스가 된다
-          system: [{ type: 'text', text: SCORING_SYSTEM, cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           messages: [
             { role: 'user', content: buildScoringPrompt(group.map((g) => g.topic)) },
           ],
