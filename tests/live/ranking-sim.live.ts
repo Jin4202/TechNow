@@ -88,12 +88,30 @@ describe('채점 기준 비교 (8.3)', () => {
     expect(CANDIDATE_SYSTEM, '치환이 안 됐다 — 원문이 바뀌었는지 확인하라').not.toBe(SCORING_SYSTEM);
 
     // **같은 입력으로 두 번 채점한다.** 토픽이 다르면 비교가 성립하지 않는다
+    // 피드 구성. **후보 풀이 무엇으로 채워져 있는지가 결과를 정한다** —
+    // phys.org 와 ScienceDaily 는 개별 논문 보도자료를 재게시하는 곳이고
+    // (그래서 출처로는 차단한다), 그 둘이 입력의 절반을 넘는다
+    const countByFeed = (list: readonly { feedName: string }[]) => {
+      const m = new Map<string, number>();
+      for (const i of list) m.set(i.feedName, (m.get(i.feedName) ?? 0) + 1);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
+    };
+    console.log('\n입력 구성 (필터 통과분):');
+    for (const [feed, n] of countByFeed(kept)) {
+      console.log(`  ${String(n).padStart(3)}건 ${((n / kept.length) * 100).toFixed(0).padStart(3)}%  ${feed}`);
+    }
+
     const current = await scoreTopics(claude, input);
-    const candidate = await scoreTopics(claude, input, CANDIDATE_SYSTEM);
+    const candidate = process.env.SIM_CANDIDATE === '1'
+      ? await scoreTopics(claude, input, CANDIDATE_SYSTEM)
+      : null;
     const runs = [
       { name: '현행', result: current },
-      { name: '후보', result: candidate },
+      ...(candidate ? [{ name: '후보', result: candidate }] : []),
     ].map((r) => ({ name: r.name, scored: r.result.scored, result: r.result }));
+
+    /** 토픽이 어느 피드에서 왔나. 여러 피드가 섞였으면 첫 항목 기준 */
+    const feedOf = (index: number) => grouped.topics[index]?.items[0]?.feedName ?? '?';
 
     // **채점 건수가 다르면 비교가 성립하지 않는다.** 실제로 후보에서 19건이
     // 조용히 빠진 적이 있다 (2026-09-07). 청크 실패를 눈에 보이게 한다
@@ -124,30 +142,37 @@ describe('채점 기준 비교 (8.3)', () => {
         (n) => `${n}점 ${all.filter((s) => s.interest.score === n).length}`,
       );
       console.log(`   interest 분포  ${dist.join(' · ')}`);
+      console.log('   임계 통과분의 피드 구성:');
+      for (const [feed, n] of countByFeed(passing.map((s) => ({ feedName: feedOf(s.index) })))) {
+        console.log(`     ${String(n).padStart(3)}건 ${((n / passing.length) * 100).toFixed(0).padStart(3)}%  ${feed}`);
+      }
       for (const s of top) {
         console.log(
-          `   n${s.novelty.score} i${s.impact.score} r${s.interest.score} = ${String(s.total).padStart(2)}  ${titleOf(s.index).slice(0, 72)}`,
+          `   n${s.novelty.score} i${s.impact.score} r${s.interest.score} = ${String(s.total).padStart(2)}  [${feedOf(s.index)}] ${titleOf(s.index).slice(0, 58)}`,
         );
       }
     }
 
-    const topIndexes = (scored: ScoredTopic[]) =>
-      new Set(
-        [...scored.filter(passesThreshold)]
-          .sort((a, b) => b.total - a.total)
-          .slice(0, thresholds.dailyCap)
-          .map((s) => s.index),
-      );
-    const before = topIndexes(runs[0]!.scored);
-    const after = topIndexes(runs[1]!.scored);
-    const overlap = [...after].filter((i) => before.has(i)).length;
+    // 후보를 안 돌렸으면 비교할 것이 없다 (SIM_CANDIDATE=1 로 켠다)
+    if (runs.length > 1) {
+      const topIndexes = (scored: ScoredTopic[]) =>
+        new Set(
+          [...scored.filter(passesThreshold)]
+            .sort((a, b) => b.total - a.total)
+            .slice(0, thresholds.dailyCap)
+            .map((s) => s.index),
+        );
+      const before = topIndexes(runs[0]!.scored);
+      const after = topIndexes(runs[1]!.scored);
+      const overlap = [...after].filter((i) => before.has(i)).length;
 
-    console.log(`\n상위 ${before.size}건 중 ${overlap}건이 그대로다`);
-    if (overlap < before.size) {
-      console.log('\n후보에서 새로 들어온 것:');
-      for (const i of [...after].filter((x) => !before.has(x))) console.log(`  + ${titleOf(i).slice(0, 72)}`);
-      console.log('후보에서 빠진 것:');
-      for (const i of [...before].filter((x) => !after.has(x))) console.log(`  - ${titleOf(i).slice(0, 72)}`);
+      console.log(`\n상위 ${before.size}건 중 ${overlap}건이 그대로다`);
+      if (overlap < before.size) {
+        console.log('\n후보에서 새로 들어온 것:');
+        for (const i of [...after].filter((x) => !before.has(x))) console.log(`  + ${titleOf(i).slice(0, 72)}`);
+        console.log('후보에서 빠진 것:');
+        for (const i of [...before].filter((x) => !after.has(x))) console.log(`  - ${titleOf(i).slice(0, 72)}`);
+      }
     }
 
     expect(runs[0]!.scored.length).toBeGreaterThan(0);
