@@ -1,3 +1,5 @@
+import { SITE_URL } from './site';
+
 /**
  * 외부 페이지를 가져올 때의 규약 (CLAUDE.md §2.8).
  *
@@ -5,8 +7,13 @@
  * robots.txt 를 지키고, 같은 도메인을 연달아 때리지 않는다.
  */
 
-/** 어디서 온 요청인지 알 수 있어야 한다. 차단당해도 이유를 알려줄 수 있다 */
-export const USER_AGENT = 'TechNowBot/0.1 (+https://technow-seven.vercel.app)';
+/**
+ * 어디서 온 요청인지 알 수 있어야 한다. 차단당해도 이유를 알려줄 수 있다.
+ *
+ * 주소를 여기 다시 적지 않고 `SITE_URL` 을 읽는다 — 2차 공개에서 도메인이
+ * 바뀔 때 고칠 곳이 한 군데여야 한다 (7.1a).
+ */
+export const USER_AGENT = `TechNowBot/0.1 (+${SITE_URL})`;
 
 /** 페이지 하나를 기다리는 최대 시간 */
 export const FETCH_TIMEOUT_MS = 20_000;

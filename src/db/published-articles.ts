@@ -328,9 +328,38 @@ export async function availableLocales(
   return [DEFAULT_LOCALE, ...(data ?? []).map((row) => row.locale)];
 }
 
-/** 정적 생성과 사이트맵용 */
-export async function listPublishedSlugs(db: SupabaseClient<Database>): Promise<string[]> {
-  const { data, error } = await db.from('articles').select('slug').eq('status', 'published');
-  if (error) throw new Error(`슬러그 조회 실패: ${error.message}`);
-  return (data ?? []).map((a) => a.slug);
+export interface SitemapEntry {
+  slug: string;
+  publishedAt: string;
+  /** 이 기사가 실제로 존재하는 언어. 번역이 없는 언어판은 404 다 (D-35) */
+  locales: Locale[];
+}
+
+/**
+ * 사이트맵용 목록 (로드맵 7.1a).
+ *
+ * **번역 여부까지 한 번에 가져온다.** 기사마다 `availableLocales` 를 부르면
+ * N+1 이 되고, 그렇다고 모든 기사에 두 언어를 다 적으면 번역 없는 기사의
+ * `/ko/...` 가 404 인데 사이트맵에는 있는 상태가 된다.
+ *
+ * 발행된 기사는 수정하지 않으므로(CLAUDE.md §2.2) `published_at` 이 곧
+ * `lastModified` 다.
+ */
+export async function listSitemapEntries(db: SupabaseClient<Database>): Promise<SitemapEntry[]> {
+  const { data, error } = await db
+    .from('articles')
+    .select('slug, published_at, article_translations(locale)')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false });
+
+  if (error) throw new Error(`사이트맵 목록 조회 실패: ${error.message}`);
+
+  return (data ?? [])
+    // published_at 이 비어 있으면 발행된 기사가 아니다. 타입상 null 이 가능하다
+    .filter((row): row is typeof row & { published_at: string } => row.published_at !== null)
+    .map((row) => ({
+      slug: row.slug,
+      publishedAt: row.published_at,
+      locales: [DEFAULT_LOCALE, ...row.article_translations.map((t) => t.locale)],
+    }));
 }

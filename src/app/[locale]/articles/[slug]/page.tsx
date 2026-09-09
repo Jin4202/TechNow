@@ -29,6 +29,22 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/articles
   return {
     title: article.title,
     description: article.one_line_summary,
+    /**
+     * 공유했을 때 커버가 보이게 한다 (7.1a). 이미지는 이미 있었는데
+     * `openGraph` 가 없어서 제목만 나갔다.
+     *
+     * `alt` 는 비운다 — 커버는 장식이고, 생성된 그림의 설명을 저장하지 않으므로
+     * 지어낸 alt 는 틀린 설명이 된다 (D-52 와 같은 판단).
+     */
+    openGraph: {
+      type: 'article',
+      title: article.title,
+      description: article.one_line_summary,
+      publishedTime: article.published_at ?? undefined,
+      ...(article.cover_image_url
+        ? { images: [{ url: article.cover_image_url, alt: '' }] }
+        : {}),
+    },
     // 같은 기사의 다른 언어판을 검색엔진에 알린다 (D-08).
     // 이게 없으면 두 언어판이 서로의 중복 콘텐츠로 취급된다
     alternates: {

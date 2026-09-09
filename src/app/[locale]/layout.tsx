@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Footer } from '@/components/footer';
 import { isLocale, LOCALES } from '@/config/locales';
+import { SITE_URL } from '@/config/site';
 
 import '../globals.css';
 
@@ -22,8 +23,17 @@ import type { Metadata } from 'next';
  */
 
 export const metadata: Metadata = {
+  /**
+   * 이게 없으면 각 페이지의 `alternates.canonical` 이 상대 경로로 나가서
+   * 검색엔진이 원점을 스스로 추측한다 (7.1a).
+   */
+  metadataBase: new URL(SITE_URL),
   title: 'TechNow',
   description: 'Original science and technology reporting, researched and published daily.',
+  openGraph: {
+    siteName: 'TechNow',
+    type: 'website',
+  },
 };
 
 /**
