@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
+import { Footer } from '@/components/footer';
 import { isLocale, LOCALES } from '@/config/locales';
 
 import '../globals.css';
@@ -41,7 +42,10 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[lo
   return (
     <html lang={locale} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          {children}
+          <Footer locale={locale} />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

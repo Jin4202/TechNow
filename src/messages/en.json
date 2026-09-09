@@ -21,6 +21,41 @@
     "empty": "Nothing published yet.",
     "emptyMonth": "No articles were published this month."
   },
+  "about": {
+    "title": "About",
+    "intro": "TechNow publishes original science and technology reporting every morning.",
+    "aiNotice": "This work is done by language models, not by a newsroom.",
+    "sections": {
+      "what": {
+        "title": "Who it's for",
+        "body": "Readers who work outside science and technology but want to follow what is changing inside them. Articles assume no background: a term that needs explaining gets explained the first time it appears."
+      },
+      "how": {
+        "title": "How the articles are made",
+        "body": "Every morning a pipeline reads a set of curated feeds, groups what it finds into topics, and scores each one for how new it is, how much it matters, and how interesting it would be to read. Topics that pass go to research: three to five independent sources are located, fetched, and read in full. An article is written from those sources, and then every factual claim in it is checked back against the source it cites. What passes is translated into Korean and given a cover image."
+      },
+      "notDoing": {
+        "title": "What we don't do",
+        "body": "We do not summarize or translate other outlets' articles. Sources are research material, not copy. When a claim cannot be traced back to the sources, the article is discarded rather than softened — on some days that means nothing is published at all."
+      },
+      "limits": {
+        "title": "Limits",
+        "body": "No person reads every article before it goes up. If you find an error, please tell us. We take an article down rather than editing it in place, and write it again from scratch only if the story is still worth telling. Cover images are generated: they illustrate a subject, they are not photographs of an event."
+      },
+      "accounts": {
+        "title": "Accounts aren't open yet",
+        "body": "Saving articles and the monthly summary are built but switched off while the sign-in flow is finished. Reading needs no account."
+      },
+      "privacy": {
+        "title": "Privacy",
+        "body": "There are no accounts yet, so we hold no email addresses and no passwords. Two things are recorded. A short-lived identifier derived from your IP address is kept for one day to limit abuse. If you vote on whether an article was easy to understand, an anonymous key is stored in your own browser so that one vote is not counted twice; it is not linked to anything else. Hosting and storage are provided by Vercel and Supabase."
+      }
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Corrections, questions, or anything else:"
+    }
+  },
   "profile": {
     "title": "Profile",
     "language": "Language",
@@ -83,5 +118,9 @@
       "rejected": "We couldn't sign you in.",
       "too-many": "Too many attempts. Try again in a few minutes."
     }
+  },
+  "footer": {
+    "about": "About",
+    "contact": "Contact"
   }
 }
