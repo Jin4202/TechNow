@@ -1,71 +1,16 @@
 import { NextRequest } from 'next/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { swapLocale } from '@/config/locales';
-import { checkGate, localeRedirect, proxy } from '@/proxy';
+import { localeRedirect, proxy } from '@/proxy';
 
-const CREDENTIALS = { user: 'gate', password: 'secret', isDevelopment: false };
-
-function basic(user: string, password: string): string {
-  return `Basic ${btoa(`${user}:${password}`)}`;
-}
-
-describe('checkGate', () => {
-  it('자격증명이 맞으면 통과', () => {
-    expect(checkGate(basic('gate', 'secret'), CREDENTIALS)).toBe('allow');
-  });
-
-  it('Authorization 헤더가 없으면 401', () => {
-    expect(checkGate(null, CREDENTIALS)).toBe('challenge');
-  });
-
-  it('비밀번호가 틀리면 401', () => {
-    expect(checkGate(basic('gate', 'wrong'), CREDENTIALS)).toBe('challenge');
-  });
-
-  it('사용자명이 틀리면 401', () => {
-    expect(checkGate(basic('someone', 'secret'), CREDENTIALS)).toBe('challenge');
-  });
-
-  it('Basic 이 아닌 스킴은 401', () => {
-    expect(checkGate('Bearer abc123', CREDENTIALS)).toBe('challenge');
-  });
-
-  it('base64가 깨져 있으면 401', () => {
-    expect(checkGate('Basic !!!not-base64!!!', CREDENTIALS)).toBe('challenge');
-  });
-
-  it('콜론이 없으면 401', () => {
-    expect(checkGate(`Basic ${btoa('nocolon')}`, CREDENTIALS)).toBe('challenge');
-  });
-
-  it('비밀번호에 콜론이 들어 있어도 첫 콜론만 구분자로 쓴다', () => {
-    const env = { user: 'gate', password: 'a:b:c', isDevelopment: false };
-    expect(checkGate(basic('gate', 'a:b:c'), env)).toBe('allow');
-  });
-
-  describe('설정이 비어 있을 때', () => {
-    it('프로덕션에서는 통과가 아니라 차단 (fail closed)', () => {
-      const env = { user: undefined, password: undefined, isDevelopment: false };
-      expect(checkGate(basic('gate', 'secret'), env)).toBe('misconfigured');
-    });
-
-    it('비밀번호만 빠져도 차단', () => {
-      const env = { user: 'gate', password: undefined, isDevelopment: false };
-      expect(checkGate(basic('gate', 'secret'), env)).toBe('misconfigured');
-    });
-
-    it('개발 환경에서는 통과시켜 로컬 작업을 막지 않는다', () => {
-      const env = { user: undefined, password: undefined, isDevelopment: true };
-      expect(checkGate(null, env)).toBe('allow');
-    });
-  });
-
-  it('개발 환경에서는 자격증명이 설정돼 있어도 요구하지 않는다', () => {
-    const env = { user: 'gate', password: 'secret', isDevelopment: true };
-    expect(checkGate(null, env)).toBe('allow');
-  });
-});
+/**
+ * **접근 게이트 테스트가 여기 있었고 7.7 에서 함께 사라졌다** (2026-09-09).
+ * `checkGate` 8개와 "게이트를 통과하지 못하면 리다이렉트하지 않는다" 가 그것이다.
+ * 사이트가 공개됐으므로 그 판정이 존재하지 않는다.
+ *
+ * 남은 것은 언어 리다이렉트와 세션 갱신이고, 둘 다 계속 남는다.
+ */
 
 describe('localeRedirect', () => {
   it('언어가 이미 붙어 있으면 그대로 둔다', () => {
@@ -122,42 +67,30 @@ describe('swapLocale', () => {
 });
 
 describe('proxy 의 언어 리다이렉트', () => {
-  /**
-   * 개발 환경에서는 게이트가 통과하므로(checkGate) 리다이렉트만 남는다.
-   * NODE_ENV 는 vitest 가 'test' 로 두므로 게이트 값을 직접 넣어준다.
-   */
   function request(path: string, headers: Record<string, string> = {}) {
     return new NextRequest(new URL(path, 'http://localhost:3000'), { headers });
   }
 
-  beforeEach(() => {
-    vi.stubEnv('GATE_USER', 'gate');
-    vi.stubEnv('GATE_PASSWORD', 'secret');
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  const auth = { authorization: `Basic ${btoa('gate:secret')}` };
-
   it('언어 없는 경로는 307 이다 — 308 이면 브라우저가 캐시해 언어 변경이 먹지 않는다', async () => {
-    const response = await proxy(request('/', auth));
+    const response = await proxy(request('/'));
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3000/en');
   });
 
   it('쿠키를 보고 목적지를 고른다', async () => {
-    const response = await proxy(request('/', { ...auth, cookie: 'NEXT_LOCALE=ko' }));
+    const response = await proxy(request('/', { cookie: 'NEXT_LOCALE=ko' }));
 
     expect(response.headers.get('location')).toBe('http://localhost:3000/ko');
   });
 
-  it('게이트를 통과하지 못하면 리다이렉트하지 않는다', async () => {
-    // 언어 리다이렉트가 게이트보다 앞에 오면 비공개 사이트의 경로 구조가 새어나간다
-    const response = await proxy(request('/'));
+  it('자격증명 없이도 리다이렉트된다 — 게이트가 없다 (7.7)', async () => {
+    // 게이트 시절에는 같은 요청이 401 이었다. 이 테스트가 그 차이를 고정한다
+    const response = await proxy(request('/articles/some-slug'));
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3000/en/articles/some-slug',
+    );
   });
 });

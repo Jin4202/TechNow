@@ -6,79 +6,22 @@ import { updateSession } from '@/db/supabase/session';
 import type { NextRequest } from 'next/server';
 
 /**
- * 접근 게이트 (로드맵 0.5).
+ * 언어 리다이렉트와 세션 갱신 (D-08, 로드맵 4.0).
  *
- * Phase 7 이전까지 사이트는 공개되지 않는다. 7.7에서 이 파일을 제거한다.
+ * **접근 게이트(basic auth)가 여기 있었고 7.7 에서 걷어냈다** (2026-09-09, 1차 공개).
+ * 사이트는 이제 누구나 볼 수 있다. 비공개로 지켜야 할 것을 막는 것은 게이트가
+ * 아니라 RLS 다 — 발행 전 기사는 anon 키로 조회되지 않는다 (D-02, 7.6a 에서
+ * 검사 19개로 확인). 게이트는 "아직 보여줄 때가 아니다" 를 위한 것이었지
+ * 방어선이 아니었다.
  *
  * Next 16에서 `middleware.ts` 규약은 `proxy.ts` 로 이름이 바뀌었다.
  * proxy 는 렌더 코드와 분리 실행되므로 여기서 만든 전역 상태를 앱이 볼 수 있다고
  * 가정하면 안 된다. 정보 전달은 헤더·쿠키·리다이렉트로만 한다.
  *
- * 이 파일은 세 가지를 한다:
- *   1. 접근 게이트 (basic auth) — 7.7에서 제거한다
- *   2. 언어 없는 경로의 리다이렉트 (D-08) — 계속 남는다
- *   3. Supabase 세션 갱신 — 계속 남는다
+ * 이 파일은 두 가지를 한다:
+ *   1. 언어 없는 경로의 리다이렉트 (D-08)
+ *   2. Supabase 세션 갱신
  */
-
-const REALM = 'TechNow';
-
-/** 길이는 노출되지만 내용 비교는 조기 종료하지 않는다 */
-function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
-export type GateResult =
-  /** 통과 */
-  | 'allow'
-  /** 자격증명 요구 (401) */
-  | 'challenge'
-  /** 게이트 자체가 설정되지 않음 (503). 프로덕션에서 통과시키지 않는다 */
-  | 'misconfigured';
-
-export interface GateEnv {
-  user: string | undefined;
-  password: string | undefined;
-  isDevelopment: boolean;
-}
-
-/**
- * 순수 판정 함수. NextRequest 없이 테스트할 수 있도록 분리했다.
- */
-export function checkGate(authorizationHeader: string | null, env: GateEnv): GateResult {
-  const { user, password, isDevelopment } = env;
-
-  // 게이트의 목적은 배포본을 비공개로 두는 것이다. 로컬 개발 서버에는 의미가 없고
-  // 매 요청 자격증명을 요구하면 작업만 방해한다
-  if (isDevelopment) return 'allow';
-
-  if (!user || !password) {
-    // 설정 누락이 게이트 해제로 이어지면 안 된다 (fail closed)
-    return 'misconfigured';
-  }
-
-  if (!authorizationHeader?.startsWith('Basic ')) return 'challenge';
-
-  let decoded: string;
-  try {
-    decoded = atob(authorizationHeader.slice('Basic '.length));
-  } catch {
-    return 'challenge';
-  }
-
-  const separator = decoded.indexOf(':');
-  if (separator === -1) return 'challenge';
-
-  // 사용자명이 틀려도 비밀번호 비교를 건너뛰지 않는다
-  const userOk = constantTimeEquals(decoded.slice(0, separator), user);
-  const passwordOk = constantTimeEquals(decoded.slice(separator + 1), password);
-
-  return userOk && passwordOk ? 'allow' : 'challenge';
-}
 
 /**
  * 언어 없는 경로를 언어 있는 경로로 돌린다 (D-08, 로드맵 4.0).
@@ -124,46 +67,25 @@ function pickLocale(hints: { cookie?: string; acceptLanguage?: string | null }):
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const result = checkGate(request.headers.get('authorization'), {
-    user: process.env.GATE_USER,
-    password: process.env.GATE_PASSWORD,
-    isDevelopment: process.env.NODE_ENV === 'development',
+  // 리다이렉트 판정이 세션 갱신보다 앞이다. 리다이렉트될 요청의 세션을 갱신해봐야
+  // 그 응답은 버려진다
+  const target = localeRedirect(request.nextUrl.pathname, {
+    cookie: request.cookies.get(LOCALE_COOKIE)?.value,
+    acceptLanguage: request.headers.get('accept-language'),
   });
 
-  if (result === 'allow') {
-    // 게이트 다음, 세션 갱신 앞이다. 리다이렉트될 요청의 세션을 갱신해봐야
-    // 그 응답은 버려진다
-    const target = localeRedirect(request.nextUrl.pathname, {
-      cookie: request.cookies.get(LOCALE_COOKIE)?.value,
-      acceptLanguage: request.headers.get('accept-language'),
-    });
-
-    if (target) {
-      const url = request.nextUrl.clone();
-      url.pathname = target;
-      // **307 이지 308 이 아니다.** 목적지가 쿠키에 따라 달라지므로 영구 리다이렉트로
-      // 내면 브라우저가 그것을 캐시해, 언어를 바꿔도 `/` 가 계속 옛 언어로 간다.
-      // 실제로 그렇게 만들었다가 잡았다. 307 은 메서드를 유지하면서 임시다
-      return NextResponse.redirect(url, 307);
-    }
-
-    return updateSession(request);
+  if (target) {
+    const url = request.nextUrl.clone();
+    url.pathname = target;
+    // **307 이지 308 이 아니다.** 목적지가 쿠키에 따라 달라지므로 영구 리다이렉트로
+    // 내면 브라우저가 그것을 캐시해, 언어를 바꿔도 `/` 가 계속 옛 언어로 간다.
+    // 실제로 그렇게 만들었다가 잡았다. 307 은 메서드를 유지하면서 임시다
+    return NextResponse.redirect(url, 307);
   }
 
-  if (result === 'misconfigured') {
-    return new NextResponse(
-      '접근 게이트가 설정되지 않았습니다. GATE_USER 와 GATE_PASSWORD 를 등록하세요.',
-      { status: 503 },
-    );
-  }
-
-  return new NextResponse('Authentication required', {
-    status: 401,
-    headers: { 'WWW-Authenticate': `Basic realm="${REALM}", charset="UTF-8"` },
-  });
+  return updateSession(request);
 }
 
 export const config = {
-  // 정적 자산까지 막으면 401 화면의 CSS/JS 로딩이 깨진다
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
