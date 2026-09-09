@@ -6,6 +6,7 @@ import { ArticleFeedback } from '@/components/article-feedback';
 import { CoverImage } from '@/components/cover-image';
 import { ScrapButton } from '@/components/scrap-button';
 import { categoryLabel } from '@/config/categories';
+import { features } from '@/config/features';
 import { toLocale } from '@/config/locales';
 import { availableLocales, getPublishedArticle } from '@/db/published-articles';
 import { isScrapped } from '@/db/scraps';
@@ -90,14 +91,18 @@ export default async function ArticlePage({ params }: PageProps<'/[locale]/artic
             {article.one_line_summary}
           </p>
 
-          <div className="mt-4">
-            <ScrapButton
-              articleId={article.id}
-              locale={locale}
-              initiallyScrapped={scrapped}
-              loggedIn={user !== null}
-            />
-          </div>
+          {/* 계정이 잠겨 있으면 버튼을 아예 내지 않는다 (7.0c).
+              비로그인 상태의 이 버튼은 `/login` 링크가 되는데, 그 경로가 404 다 */}
+          {features.accounts ? (
+            <div className="mt-4">
+              <ScrapButton
+                articleId={article.id}
+                locale={locale}
+                initiallyScrapped={scrapped}
+                loggedIn={user !== null}
+              />
+            </div>
+          ) : null}
         </header>
 
         {/* 제목과 요약 다음에 온다 — 무슨 일인지 먼저 읽고 그림을 본다.

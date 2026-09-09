@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { ArticleCard } from '@/components/article-card';
+import { features } from '@/config/features';
 import { toLocale } from '@/config/locales';
 import { listScraps } from '@/db/scraps';
 import { createClient } from '@/db/supabase/server';
@@ -18,6 +19,9 @@ import { createClient } from '@/db/supabase/server';
 export default async function ScrapsPage({ params }: PageProps<'/[locale]/scraps'>) {
   const locale = toLocale((await params).locale);
   setRequestLocale(locale);
+
+  // 계정 기능이 잠겨 있으면 없는 페이지다 (7.0c)
+  if (!features.accounts) notFound();
 
   const t = await getTranslations();
   const supabase = await createClient();

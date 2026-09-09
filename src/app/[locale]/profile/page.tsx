@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { features } from '@/config/features';
 import { toLocale } from '@/config/locales';
 import { getProfile } from '@/db/profiles';
 import { createClient } from '@/db/supabase/server';
@@ -15,6 +16,9 @@ import { createClient } from '@/db/supabase/server';
 export default async function ProfilePage({ params }: PageProps<'/[locale]/profile'>) {
   const locale = toLocale((await params).locale);
   setRequestLocale(locale);
+
+  // 계정 기능이 잠겨 있으면 없는 페이지다 (7.0c). 로그인으로 보내지 않는다 — 거기도 404 다
+  if (!features.accounts) notFound();
 
   const t = await getTranslations();
   const supabase = await createClient();

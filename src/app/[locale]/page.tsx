@@ -6,6 +6,7 @@ import { ArticleCard } from '@/components/article-card';
 import { CategoryFilter } from '@/components/category-filter';
 import { LocaleSwitcher } from '@/components/locale-switcher';
 import { isCategory } from '@/config/categories';
+import { features } from '@/config/features';
 import { LOCALES, toLocale } from '@/config/locales';
 import { getProfile } from '@/db/profiles';
 import { listPublishedArticles } from '@/db/published-articles';
@@ -107,14 +108,14 @@ export default async function Home({ params, searchParams }: PageProps<'/[locale
                 {t('nav.logOut')}
               </button>
             </form>
-          ) : (
+          ) : features.accounts ? (
             <Link
               href={`/${locale}/login`}
               className="rounded-md bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
             >
               {t('nav.logIn')}
             </Link>
-          )}
+          ) : null}
         </div>
       </header>
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { SummaryMarkdown } from '@/components/summary-markdown';
+import { features } from '@/config/features';
 import { toLocale } from '@/config/locales';
 import { listMySummaries } from '@/db/monthly-summaries';
 import { getProfile } from '@/db/profiles';
@@ -20,6 +21,9 @@ import { createClient } from '@/db/supabase/server';
 export default async function SummaryPage({ params }: PageProps<'/[locale]/summary'>) {
   const locale = toLocale((await params).locale);
   setRequestLocale(locale);
+
+  // 계정 기능이 잠겨 있으면 없는 페이지다 (7.0c)
+  if (!features.accounts) notFound();
 
   const t = await getTranslations();
   const supabase = await createClient();
