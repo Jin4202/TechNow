@@ -1,6 +1,7 @@
 import { addUsage, estimateCost, ZERO_USAGE, type TokenUsage } from '@/clients/anthropic';
 import { budget } from '@/config/budget';
 import { feeds } from '@/config/feeds';
+import { activeProfile } from '@/config/profiles';
 import {
   CACHE_READ_MULTIPLIER,
   CACHE_WRITE_MULTIPLIER,
@@ -33,7 +34,13 @@ import { groupTopics, type Topic } from '@/pipeline/group/group-topics';
 import { topicHash } from '@/pipeline/group/topic-hash';
 import { rescoreTopics, selectForRescore } from '@/pipeline/score/rescore';
 import { scoreTopics, type ScoredTopic } from '@/pipeline/score/score-topics';
-import { selectTopics, summarizeSelection } from '@/pipeline/score/select-topics';
+import {
+  finalizeEntries,
+  nextCandidate,
+  rankPassing,
+  summarizeSelection,
+  type BuiltTopic,
+} from '@/pipeline/score/select-topics';
 import { createFetchContext } from '@/pipeline/research/fetch-page';
 
 import type { AnthropicClient } from '@/clients/anthropic';
@@ -61,6 +68,8 @@ export type TopicBuilder = (input: BuildTopicInput) => Promise<BuildTopicResult>
 
 export interface DailyRunResult {
   runId: string;
+  /** 이 런이 쓴 발행 프로필 (D-61) */
+  profile: string;
   uniqueItems: number;
   filtered: Record<string, number>;
   candidates: number;
@@ -106,7 +115,9 @@ export async function runDailyDiscovery(
   fal: FalClient,
   options: DailyRunOptions,
 ): Promise<DailyRunResult> {
-  const runId = await startRun(db, 'daily');
+  // 프로필은 런 시작에 한 번 읽는다. 런 도중 환경변수가 바뀌어도 한 런 안에서는 규칙이 같아야 한다
+  const profile = activeProfile();
+  const runId = await startRun(db, 'daily', { profile: profile.name });
   const warn = options.onWarn ?? (() => {});
   const info = options.onInfo ?? (() => {});
 
@@ -170,7 +181,7 @@ export async function runDailyDiscovery(
     const rescore = await rescoreTopics(
       claude,
       createFetchContext(),
-      selectForRescore(scoring.scored).map((score) => ({
+      selectForRescore(scoring.scored, profile.rescoreTopN).map((score) => ({
         score,
         title: topics[score.index]!.title,
         triggerUrl: triggerUrl(topics[score.index]!),
@@ -192,20 +203,20 @@ export async function runDailyDiscovery(
       }
     }
 
-    // ── 선정 (2.6) ──────────────────────────────────────────
-    const scoredList = [...finalScores.values()].sort((a, b) => a.index - b.index);
-    const { entries } = selectTopics(scoredList);
-    const selection = summarizeSelection(entries);
-
+    // ── 선정 (2.6, D-61) ────────────────────────────────────
     /**
-     * 임계를 통과한 토픽을 순위대로 (D-21).
+     * 선정은 미리 계산한 목록이 아니라 **걷는 판정**이다 (D-61).
      *
-     * 상한만큼 자르지 않는다 — 조사는 정상적으로 실패할 수 있고, 상위 3개가 모두
-     * 실패하면 4등이 멀쩡한데도 그날 기사가 0건이 된다.
+     * 조사는 정상적으로 실패할 수 있어서(D-21) 무엇이 만들어질지는 걸어봐야 안다.
+     * 예전에는 순위 목록을 미리 만들고 차례로 걸었는데, 그 목록에 쿼터에 막힌 논문까지
+     * 순위가 붙어 있어서 앞 순위가 실패하면 쿼터를 그대로 지나쳤다
+     * (09-14: 쿼터가 고른 것 3편 → 실제로 만들어진 것 5편).
+     *
+     * 이제 매 시도 전에 "지금까지 실제로 만들어진 것" 을 보고 들일지 정한다.
+     * 상한도 같은 판정이 막는다 — 따로 세지 않는다
      */
-    const ranked = entries
-      .filter((e) => e.rank !== null)
-      .sort((a, b) => a.rank! - b.rank!);
+    const scoredList = [...finalScores.values()].sort((a, b) => a.index - b.index);
+    const ranked = rankPassing(scoredList);
 
     // ── 기사 생성 (3.12, 3.15) ──────────────────────────────
     const articleIdByIndex = new Map<number, string>();
@@ -219,12 +230,17 @@ export async function runDailyDiscovery(
     let imagesGenerated = sweep.imagesGenerated;
     let searchCalls = 0;
     let pagesFetched = rescore.pagesFetched;
+    const tried = new Set<number>();
+    const built: BuiltTopic[] = [];
 
-    for (const entry of ranked) {
-      if (articleIdByIndex.size >= thresholds.dailyCap) break;
-
-      const index = entry.score.index;
+    for (
+      let candidate = nextCandidate(ranked, tried, built, profile);
+      candidate;
+      candidate = nextCandidate(ranked, tried, built, profile)
+    ) {
+      const index = candidate.index;
       const topic = topics[index]!;
+      tried.add(index);
       buildAttempts += 1;
 
       const result = await options.buildTopic({
@@ -234,10 +250,10 @@ export async function runDailyDiscovery(
         items: topic.items.map((i) => ({ title: i.title, description: i.description })),
         followUpOf: topic.followUpOfArticleId,
         scores: {
-          novelty: entry.score.novelty.score,
-          impact: entry.score.impact.score,
-          interest: entry.score.interest.score,
-          total: entry.score.total,
+          novelty: candidate.novelty.score,
+          impact: candidate.impact.score,
+          interest: candidate.interest.score,
+          total: candidate.total,
         },
       });
 
@@ -249,19 +265,26 @@ export async function runDailyDiscovery(
 
       if (result.articleId) {
         articleIdByIndex.set(index, result.articleId);
+        // 분야는 작성이 정한 실제 값으로 센다. 채점의 예측과 다를 수 있다 —
+        // 없으면(배포 전 자식 태스크가 돌려준 결과) 예측으로 대신한다
+        built.push({ kind: candidate.kind, category: result.category ?? candidate.category });
       } else {
         buildFailures.push({
           topicTitle: topic.title,
           failure: result.failure ?? 'unknown',
           detail: result.detail ?? '',
         });
-        warn('기사 생성 실패, 다음 순위로', {
+        warn('기사 생성 실패, 다음 후보로', {
           topicTitle: topic.title,
           failure: result.failure ?? 'unknown',
           detail: result.detail ?? '',
         });
       }
     }
+
+    // 걷기가 끝난 뒤에 사유를 확정한다. 로그가 계획이 아니라 실제로 일어난 일을 말한다
+    const entries = finalizeEntries(scoredList, ranked, tried, built, profile);
+    const selection = summarizeSelection(entries);
 
     // ── 판정 기록 (2.7) ─────────────────────────────────────
     const entryByIndex = new Map(entries.map((e) => [e.score.index, e]));
@@ -282,6 +305,7 @@ export async function runDailyDiscovery(
         score_interest: score?.interest.score ?? null,
         importance_score: score?.total ?? null,
         topic_kind: score?.kind ?? null,
+        topic_category: score?.category ?? null,
         reason_novelty: score?.novelty.reason ?? null,
         reason_impact: score?.impact.reason ?? null,
         reason_interest: score?.interest.reason ?? null,
@@ -347,13 +371,14 @@ export async function runDailyDiscovery(
       cost_fixed: Number(costFixed.toFixed(4)),
       cost_variable: Number(costVariable.toFixed(4)),
       notes:
-        `수집 ${unique.length} → 필터통과 ${kept.length} → 후보 ${candidates.length} → ` +
+        `프로필 ${profile.name} · 수집 ${unique.length} → 필터통과 ${kept.length} → 후보 ${candidates.length} → ` +
         `토픽 ${topics.length} → 임계통과 ${selection.passedThreshold} → ` +
         `시도 ${buildAttempts} → 생성 ${articleIdByIndex.size}. 피드실패 ${failures.length}`,
     });
 
     return {
       runId,
+      profile: profile.name,
       uniqueItems: unique.length,
       filtered,
       candidates: candidates.length,

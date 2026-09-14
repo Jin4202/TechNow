@@ -1,3 +1,4 @@
+import { activeProfile } from './profiles';
 import { envInt, envNumber } from './tunables';
 
 /**
@@ -29,40 +30,15 @@ export const thresholds = {
   },
 
   /**
-   * 하루 발행 상한. 비용 가드. env: TECHNOW_DAILY_CAP
+   * 하루 발행 상한. **발행 프로필이 정한다** (D-61).
    *
-   * 3 → 5 (2026-09-06, D-46). 카테고리 7종을 매일 한 편씩 덮는 것은 공급과
-   * 비용 양쪽에서 불가능해서(임계 통과가 하루 8건, 7편이면 월 $79) 상한만 올렸다.
+   * 개별 환경변수로 따로 덮지 않는다 — 상한·논문 규칙·분야 규칙이 서로를 전제하므로
+   * 묶음(`TECHNOW_PROFILE`) 단위로만 고른다. 도달 목표가 아니라 천장이다.
    *
-   * **공급이 먼저 막힌다.** 통과율 60% 면 5편에 8시도가 필요한데 임계 통과가
-   * 그만큼 안 나오는 날이 많다. 5는 도달 목표가 아니라 천장이다.
+   * 역사: 3 → 5 (D-46) → 프로필 two 2 · one 1 (2026-09-14, D-61)
    */
   get dailyCap() {
-    return envInt('TECHNOW_DAILY_CAP', 5);
-  },
-
-  /**
-   * 하루 상한 안에서 **단일 논문 토픽**이 차지할 수 있는 최대 건수 (D-57).
-   *
-   * 왜: 후보 풀의 66% 가 논문 보도자료 재게시처(ScienceDaily, phys.org)이고,
-   * novelty 앵커가 "A paper ... made public today" 를 5점으로 정의해서
-   * 임계 통과에서는 63% 로 더 쏠린다. 사용자가 "사실상 논문을 그대로 요약해놓은
-   * 기사" 를 문제로 지목했다.
-   *
-   * **점수를 주무르지 않고 카운터로 막는다** (CLAUDE.md §2.6 과 같은 결).
-   * 점수 조정은 두 번 시도해 두 번 다 실패했다 — 풀이 논문으로 차 있으면
-   * 점수를 어떻게 주물러도 논문이 뽑힌다 (D-56, D-57).
-   *
-   * 2 인 이유: 상한 5 의 과반이 논문이 아니게 된다. 실측에서 임계를 통과한
-   * 비논문이 14건(event 8 · trend 6)이라 3자리를 채우기에 충분했다.
-   *
-   * **쿼터가 물리면 그날 기사가 5건에 못 미칠 수 있다.** 비논문 공급이 마르면
-   * 그렇다. 논문 5건보다 잘 섞인 4건이 낫다는 판단이고, 얼마나 자주 물리는지는
-   * 선정 로그에 `paper-quota` 로 남는다.
-   * env: TECHNOW_MAX_PAPERS_PER_DAY
-   */
-  get maxPapersPerDay() {
-    return envInt('TECHNOW_MAX_PAPERS_PER_DAY', 2);
+    return activeProfile().dailyCap;
   },
 
   /**
@@ -72,15 +48,13 @@ export const thresholds = {
    * 대상 수가 요동친다 — 실측에서 총점 중앙값 9에 임계값 10이라
    * 밴드가 134개 중 72개를 삼켰고 월 $8.21 이 나왔다.
    *
-   * 상한이 한 자릿수인 이상 실제 판단이 필요한 건 상위 몇 개뿐이다.
-   * 20등 토픽의 점수가 9인지 10인지는 아무 결과도 바꾸지 않는다.
+   * **상한의 3배**이고 프로필이 정한다 (two 6 · one 3). 재채점이 점수를 낮출 수
+   * 있으므로 여유를 둔다. 역사: 9 → 15 (D-46) → 프로필 (D-61)
    *
-   * 상한의 3배로 둔다 — 재채점이 점수를 낮출 수 있으므로 여유를 둔다.
-   * 상한이 5가 되면서 9 → 15 (D-46). 이 값은 공급 병목도 조금 넓힌다.
-   * env: TECHNOW_RESCORE_TOP_N
+   * 논문 규칙(예전 `maxPapersPerDay`)은 여기 없다. 프로필의 `papers` 가 갖는다
    */
   get rescoreTopN() {
-    return envInt('TECHNOW_RESCORE_TOP_N', 15);
+    return activeProfile().rescoreTopN;
   },
 
   /** 그룹핑 프롬프트에 넣을 "최근 발행 기사 제목"의 기간. env: TECHNOW_FOLLOW_UP_WINDOW_DAYS */

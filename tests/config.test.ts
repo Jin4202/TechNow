@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { budget } from '@/config/budget';
 import { categoryLabel, CATEGORIES } from '@/config/categories';
 import { DEFAULT_LOCALE, LOCALES } from '@/config/locales';
 import { MODEL_HAIKU, MODEL_SONNET, models, sourceReadingModels } from '@/config/models';
+import { activeProfile, PROFILE_NAMES, PROFILES } from '@/config/profiles';
 import { ALL_ASSETS, requiredAssets } from '@/config/required-assets';
 import { thresholds } from '@/config/thresholds';
 import { Constants } from '@/db/types';
@@ -36,14 +37,58 @@ describe('thresholds', () => {
     expect(thresholds.processedRetentionDays).toBeGreaterThan(thresholds.followUpWindowDays);
   });
 
-  it('일 상한은 5 (비용 가드, D-46)', () => {
-    expect(thresholds.dailyCap).toBe(5);
+  it('기본 프로필은 하루 2편이다 (비용 가드, D-61)', () => {
+    expect(thresholds.dailyCap).toBe(2);
   });
 
-  // 재채점은 "상한의 3배" 규칙이다 (D-19). 상한을 올리고 여기를 안 올리면
+  // 재채점은 "상한의 3배" 규칙이다 (D-19). 상한을 바꾸고 여기를 안 바꾸면
   // 후보가 상한보다 적어져 조용히 공급이 막힌다
-  it('재채점 대상이 일 상한의 3배다 (D-19)', () => {
-    expect(thresholds.rescoreTopN).toBe(thresholds.dailyCap * 3);
+  it.each(PROFILE_NAMES)('%s 프로필: 재채점 대상이 일 상한의 3배다 (D-19)', (name) => {
+    expect(PROFILES[name].rescoreTopN).toBe(PROFILES[name].dailyCap * 3);
+  });
+});
+
+describe('발행 프로필 (D-61)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('환경변수가 없으면 two', () => {
+    vi.stubEnv('TECHNOW_PROFILE', undefined);
+    expect(activeProfile().name).toBe('two');
+  });
+
+  it('one 으로 바꾸면 상한·재채점 수·예산이 한꺼번에 바뀐다', () => {
+    vi.stubEnv('TECHNOW_PROFILE', 'one');
+    expect(thresholds.dailyCap).toBe(1);
+    expect(thresholds.rescoreTopN).toBe(3);
+    expect(budget.monthlyUsd).toBe(18);
+  });
+
+  it('모르는 이름이면 경고하고 two — 오타로 파이프라인이 멈추면 안 된다', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubEnv('TECHNOW_PROFILE', 'five');
+    expect(activeProfile().name).toBe('two');
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('2편 프로필은 논문 최대 1편 + 분야 겹침 금지다', () => {
+    expect(PROFILES.two.papers).toEqual({ mode: 'quota', max: 1 });
+    expect(PROFILES.two.distinctCategories).toBe(true);
+  });
+
+  it('1편 프로필은 비논문 우선이다', () => {
+    expect(PROFILES.one.papers).toEqual({ mode: 'last-resort' });
+  });
+
+  // 알림(예산의 80%)이 평소 지출 바로 위에 서야 이상을 잡는다.
+  // 5편 시절 예산 $40 을 그대로 두면 2편 지출에서 알림이 영영 안 울린다
+  it.each(PROFILE_NAMES)('%s 프로필: 편수가 적을수록 예산도 작다', (name) => {
+    const bigger = PROFILE_NAMES.filter((other) => PROFILES[other].dailyCap > PROFILES[name].dailyCap);
+    for (const other of bigger) {
+      expect(PROFILES[name].monthlyUsd).toBeLessThan(PROFILES[other].monthlyUsd);
+    }
   });
 });
 
@@ -93,10 +138,14 @@ describe('budget', () => {
     expect(budget.minSources).toBeLessThanOrEqual(budget.maxSources);
   });
 
-  it('일 상한으로 한 달을 채워도 변동비가 월 예산을 넘지 않는다 (D-07)', () => {
-    const variableMonthly = budget.variableUsdPerArticle * thresholds.dailyCap * 30;
-    expect(variableMonthly).toBeLessThan(budget.monthlyUsd);
-  });
+  it.each(PROFILE_NAMES)(
+    '%s 프로필: 일 상한으로 한 달을 채워도 변동비가 월 예산을 넘지 않는다 (D-07)',
+    (name) => {
+      const profile = PROFILES[name];
+      const variableMonthly = budget.variableUsdPerArticle * profile.dailyCap * 30;
+      expect(variableMonthly).toBeLessThan(profile.monthlyUsd);
+    },
+  );
 });
 
 describe('required assets', () => {

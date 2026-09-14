@@ -46,6 +46,11 @@ export interface BuildTopicResult {
   searchCalls: number;
   pagesFetched: number;
   sourceCount: number;
+  /**
+   * 만들어진 기사의 **실제 분야** (D-61). 작성 단계가 정한 값이다.
+   * 선정의 "분야 겹침 금지" 가 채점의 예측이 아니라 이 값을 본다. 실패하면 없다
+   */
+  category?: string;
 
   /**
    * 단계별로 모델이 다르므로 사용량을 나눠 돌려준다 (D-07 의 비용 로그).
@@ -201,6 +206,7 @@ export async function buildTopic(
     usageHaiku,
     // 번역도 Sonnet 이다 (CLAUDE.md §2.7)
     usageSonnet: assets ? addUsage(usageSonnet, assets.usage) : usageSonnet,
+    category: built.article.category,
     assetsFilled: assets?.filled ?? [],
     awaitingAssets: assets ? !assets.ready : false,
     imagesGenerated: assets?.imagesGenerated ?? 0,

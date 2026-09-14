@@ -132,6 +132,8 @@ export async function rescoreTopics(
         index: score.index,
         // 재채점도 종류를 다시 판정한다. 원문을 봤으니 1차보다 정확할 수 있다
         kind: raw.kind,
+        // 분야도 원문을 보고 다시 판정한다
+        category: raw.category,
         novelty: { score: clamp(raw.novelty.score), reason: raw.novelty.reason.trim() },
         impact: { score: clamp(raw.impact.score), reason: raw.impact.reason.trim() },
         interest: { score: clamp(raw.interest.score), reason: raw.interest.reason.trim() },

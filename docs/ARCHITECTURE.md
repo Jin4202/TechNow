@@ -69,10 +69,11 @@ Trigger.dev 무료 티어 스케줄 한도는 10개다. 여유가 있으므로 *
        group         [Haiku] 같은 사건 묶기 + 최근 7일 발행 제목 대조 → new / follow-up
        score         [Haiku] 토픽별 novelty·impact·interest 각 1~5 + 근거 한 줄
        rescore       임계선 ±2 토픽만 트리거 페이지 fetch 후 재채점
-       select        총점 ≥ 10 && 모든 축 ≥ 3 → 상위 최대 3개   [D-09]
+       select        총점 ≥ 10 && 모든 축 ≥ 3 을 통과한 것 중 발행 프로필 규칙으로  [D-09, D-61]
+                     two: 2편 · 논문 ≤ 1 · 분야 겹침 금지 / one: 1편 · 비논문 우선
        ─────────────  여기까지 성공해야 후보 전체를 processed 로 갱신  [D-01]
 
-       토픽마다 (병렬, 자식 태스크):
+       토픽마다 (순서대로, 자식 태스크) — 앞 결과를 보고 다음 후보를 정한다  [D-61]:
          research    [Haiku] 쿼리 2~3개 생성 → Brave 검색 → tier 필터 → fetch+추출
                      → 3~5개 확보 → source_texts 에 저장          [D-05]
          write       [Sonnet] 구조화 JSON 기사                     ┐

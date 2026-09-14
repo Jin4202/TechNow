@@ -27,10 +27,12 @@ export interface RunCounts {
 export async function startRun(
   db: ServiceClient,
   runType: 'daily' | 'monthly',
+  /** 일간 런이 쓴 발행 프로필 (D-61). 실패한 런에도 남도록 시작할 때 쓴다 */
+  extra: { profile?: string } = {},
 ): Promise<string> {
   const { data, error } = await db
     .from('pipeline_runs')
-    .insert({ run_type: runType })
+    .insert({ run_type: runType, ...extra })
     .select('id')
     .single();
 

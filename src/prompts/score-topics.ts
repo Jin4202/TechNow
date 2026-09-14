@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CATEGORIES, CATEGORY_VALUES, type Category } from '@/config/categories';
+
 /**
  * 1차 중요도 채점 프롬프트 (로드맵 2.4).
  *
@@ -30,9 +32,33 @@ export const TopicKindSchema = z
 
 export type TopicKind = z.infer<typeof TopicKindSchema>;
 
+/**
+ * 토픽의 분야 (D-61). 역시 **점수가 아니라 구성을 위한 것이다.**
+ *
+ * 2편 프로필이 "두 편의 분야가 겹치지 않게" 고르려면 선정 때 분야를 알아야 하는데,
+ * 분야는 원래 작성 단계(`write-article.ts`)에서야 정해졌다. `kind` 와 같은 방식으로
+ * 채점이 함께 판정한다 — 추가 호출 없이 토픽당 출력 몇 토큰이다.
+ *
+ * 이건 예측이다. 이미 만들어진 기사와 비교할 때 선정은 작성이 정한 실제 분야를 본다
+ */
+export const TopicCategorySchema = z
+  .enum(CATEGORY_VALUES as unknown as [Category, ...Category[]])
+  .describe('The one category this topic belongs to.');
+
+/** 분야 목록은 `categories.ts` 가 원본이다. 여기서 다시 적지 않는다 */
+const CATEGORY_SECTION = [
+  'CATEGORY — which one section of the site does it belong in?',
+  ...CATEGORIES.map((c) => `${c.value.padEnd(18)} ${c.descriptionEn}`),
+  '',
+  'Pick the single best fit, even when a topic touches several. Choose by what the story is mainly',
+  'about for a reader: a new chip designed for AI models is "ai-computing"; a court ruling against an',
+  'AI company is "industry-policy". This does not affect the scores either.',
+].join('\n');
+
 export const TopicScoreSchema = z.object({
   topicNumber: z.number().int().describe('The topic number from the input list.'),
   kind: TopicKindSchema,
+  category: TopicCategorySchema,
   novelty: AxisSchema,
   impact: AxisSchema,
   interest: AxisSchema,
@@ -50,9 +76,9 @@ export type ScoringResult = z.infer<typeof ScoringResultSchema>;
  *
  * 청크마다 동일하므로 프롬프트 캐시의 프리픽스가 된다.
  */
-export const SCORING_SYSTEM = `You score candidate topics for a science and technology publication that publishes at most three articles a day.
+export const SCORING_SYSTEM = `You score candidate topics for a science and technology publication that publishes a small number of articles each day.
 
-First classify each topic, then score it on three axes, 1 to 5, with a one-line reason for each. The reason must answer "why this score and not one higher".
+First classify each topic — its kind and its category — then score it on three axes, 1 to 5, with a one-line reason for each. The reason must answer "why this score and not one higher".
 
 KIND — what sort of thing is this?
 paper    A single study, preprint, or research finding. "Researchers found that X."
@@ -66,6 +92,8 @@ trend    A pattern across many cases: a survey, an industry shift, an analysis o
 Classify by what the topic IS, not by who published it. A newspaper writing about
 one study is still "paper"; a journal announcing it is shutting down is "event".
 This does not affect the scores — score the topic on its merits either way.
+
+${CATEGORY_SECTION}
 
 NOVELTY — is this new information, or a repeat of what is already known?
 5  First announcement. A paper or institutional release made public today.

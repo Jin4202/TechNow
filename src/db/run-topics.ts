@@ -15,6 +15,8 @@ export interface RunTopicRow {
   follow_up_of: string | null;
   /** 토픽 종류 (D-57). 구성 쿼터의 근거이고 캘리브레이션에서 본다 */
   topic_kind: string | null;
+  /** 채점이 예측한 분야 (D-61). articles.category(실제)와 대조해 예측 정확도를 잰다 */
+  topic_category: string | null;
   score_novelty: number | null;
   score_impact: number | null;
   score_interest: number | null;

@@ -73,6 +73,25 @@ describe('scoreTopics', () => {
     expect(r.scored[0]!.total).toBe(12);
   });
 
+  it('종류와 분야를 그대로 운반한다 (D-58, D-61)', async () => {
+    // 선정의 논문 규칙과 분야 겹침 금지가 이 두 값에 기대고 있다
+    const client = stubClient(() => ({
+      scores: [
+        {
+          topicNumber: 1,
+          kind: 'event',
+          category: 'space-astronomy',
+          novelty: axis(3),
+          impact: axis(4),
+          interest: axis(5),
+        },
+      ],
+    }));
+    const r = await scoreTopics(client, [topic('T')]);
+    expect(r.scored[0]!.kind).toBe('event');
+    expect(r.scored[0]!.category).toBe('space-astronomy');
+  });
+
   it('범위를 벗어난 점수를 1~5로 조인다', async () => {
     // DB check 제약(1~5)에 걸리기 전에 잡아야 한다
     const client = stubClient(() => ({

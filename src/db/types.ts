@@ -279,6 +279,7 @@ export type Database = {
           finished_at: string | null
           id: string
           notes: string | null
+          profile: string | null
           run_type: Database["public"]["Enums"]["run_type"]
           started_at: string
           status: Database["public"]["Enums"]["run_status"]
@@ -298,6 +299,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           notes?: string | null
+          profile?: string | null
           run_type: Database["public"]["Enums"]["run_type"]
           started_at?: string
           status?: Database["public"]["Enums"]["run_status"]
@@ -317,6 +319,7 @@ export type Database = {
           finished_at?: string | null
           id?: string
           notes?: string | null
+          profile?: string | null
           run_type?: Database["public"]["Enums"]["run_type"]
           started_at?: string
           status?: Database["public"]["Enums"]["run_status"]
@@ -394,6 +397,7 @@ export type Database = {
           score_interest: number | null
           score_novelty: number | null
           selected: boolean
+          topic_category: string | null
           topic_kind: string | null
           topic_title: string
           trigger_url: string | null
@@ -421,6 +425,7 @@ export type Database = {
           score_interest?: number | null
           score_novelty?: number | null
           selected?: boolean
+          topic_category?: string | null
           topic_kind?: string | null
           topic_title: string
           trigger_url?: string | null
@@ -448,6 +453,7 @@ export type Database = {
           score_interest?: number | null
           score_novelty?: number | null
           selected?: boolean
+          topic_category?: string | null
           topic_kind?: string | null
           topic_title?: string
           trigger_url?: string | null

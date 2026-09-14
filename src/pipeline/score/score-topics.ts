@@ -7,6 +7,7 @@ import {
   type AnthropicClient,
   type TokenUsage,
 } from '@/clients/anthropic';
+import type { Category } from '@/config/categories';
 import { models } from '@/config/models';
 import { thresholds } from '@/config/thresholds';
 import {
@@ -38,6 +39,11 @@ export interface ScoredTopic {
   index: number;
   /** 토픽의 종류 (D-57). 점수가 아니라 구성 쿼터를 위한 것이다 */
   kind: TopicKind;
+  /**
+   * 채점이 예측한 분야 (D-61). 2편 프로필의 "분야 겹침 금지" 에 쓴다.
+   * 확정값은 작성 단계가 정한다 — 이미 만들어진 기사와 비교할 때는 그쪽을 본다
+   */
+  category: Category;
   novelty: AxisScore;
   impact: AxisScore;
   interest: AxisScore;
@@ -71,6 +77,7 @@ function toScoredTopic(raw: TopicScore, offset: number): ScoredTopic | null {
   return {
     index: offset + local,
     kind: raw.kind,
+    category: raw.category,
     novelty,
     impact,
     interest,

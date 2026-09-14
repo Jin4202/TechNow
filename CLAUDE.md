@@ -35,10 +35,10 @@ RSS로 주제를 발굴 → 3~5개 출처를 조사 → 원본 영문 기사 작
 1. **`SUPABASE_SERVICE_ROLE_KEY`는 절대 Next.js 런타임에 들어가지 않는다.** Trigger.dev 태스크 전용. `NEXT_PUBLIC_*` 접두사를 붙이는 순간 공개 키가 된다. 앱은 anon 키 + RLS로만 DB에 접근한다.
 2. **발행된 기사는 수정하지 않는다.** 오류는 `unpublished`로 내리고, 가치 있으면 새 기사로 재생성한다. `UPDATE articles SET body/title ... WHERE status='published'` 같은 코드를 쓰지 말 것.
 3. **모든 테이블에 RLS. 예외 없음.** `articles`·`article_sources`·`article_translations`의 select 정책은 `status='published'`인 행만 허용한다. draft가 공개 키로 새어나가면 사고다. `seen_feed_items`·`source_texts`·`pipeline_runs`는 RLS만 켜고 정책을 두지 않는다(anon에게 0행).
-4. **튜닝 값은 코드가 아니라 config다.** threshold(10), 최소 축 점수(3), daily cap(3), rescoring band(2), follow-up window(7일), pending TTL(3일), 소스 tier 목록, 필수 자산 목록 — 전부 `src/config/`에 있고 배포 없이 바꿀 수 있어야 한다. 숫자를 로직 안에 하드코딩하지 말 것.
+4. **튜닝 값은 코드가 아니라 config다.** threshold(10), 최소 축 점수(3), 발행 프로필(하루 편수·재채점 수·논문과 분야 규칙·예산 — `src/config/profiles.ts`), follow-up window(7일), pending TTL(3일), 소스 tier 목록, 필수 자산 목록 — 전부 `src/config/`에 있고 배포 없이 바꿀 수 있어야 한다. 숫자를 로직 안에 하드코딩하지 말 것.
    선정 규칙 표기는 항상 **`총점 ≥ 10 && 모든 축 ≥ 3`**. "어느 축도 2 이하가 아님" 같은 부정형으로 쓰지 말 것.
 5. **근거 검증(grounding)에 실패한 기사는 발행하지 않는다.** 완화하거나 경고로 낮추는 방향의 수정은 하지 말 것. 기사 수가 줄어드는 건 의도된 비용이다.
-6. **비용 상한을 코드로 강제한다.** 토픽당 검색 3회, 페이지 fetch 10회, 이미지 1장, 하루 기사 3개. 프롬프트에 부탁하는 게 아니라 호출 지점에서 카운터로 막는다.
+6. **비용 상한을 코드로 강제한다.** 토픽당 검색 3회, 페이지 fetch 10회, 이미지 1장. 하루 기사 수는 발행 프로필이 정한다(two 2편 · one 1편). 프롬프트에 부탁하는 게 아니라 호출 지점에서 카운터로 막는다.
 7. **모델 ID는 고정 상수로만 쓴다.** `src/config/models.ts`에만 둔다.
    - `claude-sonnet-5` — **출처 본문을 읽는 모든 단계**(작성·클레임 추출·검증·재작성) + 번역 + 월간 요약
    - `claude-haiku-4-5` — 쿼리 생성·그룹핑·1차 채점·재채점 (날짜 접미사 없음. `effort` 미지원)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getAnthropic } from '@/clients/anthropic';
 import { feeds } from '@/config/feeds';
+import { PROFILE_NAMES, PROFILES } from '@/config/profiles';
 import { thresholds } from '@/config/thresholds';
 import { applyCheapFilters } from '@/pipeline/discover/cheap-filters';
 import { dedupeItems, fetchFeeds } from '@/pipeline/discover/fetch-feeds';
@@ -152,18 +153,25 @@ describe('채점 기준 비교 (8.3)', () => {
       console.log(`   종류 (채점 전체)  ${kindLine(all)}`);
       console.log(`   종류 (임계 통과)  ${kindLine(passing)}`);
       console.log(`   종류 (상위 ${thresholds.dailyCap})    ${kindLine(top)}`);
-      // **쿼터가 실제로 어떻게 무는지.** 상한만 적용한 것과 비교한다
-      const { selected: withQuota, entries } = selectTopics(all, thresholds.dailyCap);
-      const { selected: noQuota } = selectTopics(all, thresholds.dailyCap, 99);
-      const blocked = entries.filter((e) => e.reason === 'paper-quota').length;
-      console.log(
-        `   쿼터 적용  상한만 ${noQuota.length}건(논문 ${noQuota.filter((x) => x.kind === 'paper').length}) → ` +
-          `쿼터 ${withQuota.length}건(논문 ${withQuota.filter((x) => x.kind === 'paper').length}) · 막힌 것 ${blocked}`,
-      );
-      console.log('   ── 쿼터 적용 후 발행될 목록 ──');
-      for (const x of withQuota) {
-        console.log(`   ${x.kind.padEnd(7)} n${x.novelty.score} i${x.impact.score} r${x.interest.score}  ${titleOf(x.index).slice(0, 62)}`);
+      // **프로필별로 무엇을 고르나** (D-61). 한 번 채점한 결과로 두 프로필을 나란히 본다.
+      // 미리보기라 모든 시도가 성공한다고 친다 — 실제 런은 조사가 실패하면 다음으로 넘어간다
+      for (const name of PROFILE_NAMES) {
+        const { selected, entries } = selectTopics(all, PROFILES[name]);
+        const count = (reason: string) => entries.filter((e) => e.reason === reason).length;
+        console.log(
+          `   ── 프로필 ${name}: ${selected.length}편 · 논문쿼터 ${count('paper-quota')} · ` +
+            `논문보류 ${count('paper-deferred')} · 분야겹침 ${count('category-taken')} ──`,
+        );
+        for (const x of selected) {
+          console.log(
+            `   ${x.kind.padEnd(7)} ${x.category.padEnd(18)} n${x.novelty.score} i${x.impact.score} r${x.interest.score}  ${titleOf(x.index).slice(0, 52)}`,
+          );
+        }
       }
+      // 분야 예측이 어떻게 퍼져 있나. 한쪽으로 몰리면 "분야 겹침 금지" 가 공급을 막는다
+      const byCategory = new Map<string, number>();
+      for (const x of passing) byCategory.set(x.category, (byCategory.get(x.category) ?? 0) + 1);
+      console.log(`   분야 (임계 통과)  ${[...byCategory.entries()].map(([c, n]) => `${c} ${n}`).join(' · ')}`);
       console.log('   임계 통과분의 피드 구성:');
       for (const [feed, n] of countByFeed(passing.map((s) => ({ feedName: feedOf(s.index) })))) {
         console.log(`     ${String(n).padStart(3)}건 ${((n / passing.length) * 100).toFixed(0).padStart(3)}%  ${feed}`);
